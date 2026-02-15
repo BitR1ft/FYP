@@ -43,3 +43,5 @@ cryptography==42.0.0
 python-whois==0.8.0
 dnspython==2.4.2
 
+# HTTP Probing - Month 5
+mmh3==4.1.0
