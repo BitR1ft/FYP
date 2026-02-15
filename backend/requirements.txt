@@ -39,3 +39,7 @@ pydantic-extra-types==2.3.0
 # Security
 cryptography==42.0.0
 
+# Reconnaissance tools
+python-whois==0.8.0
+dnspython==2.4.2
+
