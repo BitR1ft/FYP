@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { authApi } from '@/lib/api';
 
 export default function DashboardPage() {
@@ -104,21 +105,21 @@ export default function DashboardPage() {
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button className="flex items-center gap-3 p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left">
+            <Link href="/projects/new" className="flex items-center gap-3 p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left">
               <span className="text-2xl">➕</span>
               <div>
                 <div className="font-semibold text-white">New Project</div>
                 <div className="text-sm text-blue-100">Start a new penetration test</div>
               </div>
-            </button>
+            </Link>
 
-            <button className="flex items-center gap-3 p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+            <Link href="/projects" className="flex items-center gap-3 p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
               <span className="text-2xl">📋</span>
               <div>
                 <div className="font-semibold text-white">View Projects</div>
                 <div className="text-sm text-gray-300">See all your projects</div>
               </div>
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -132,9 +133,12 @@ export default function DashboardPage() {
             Create your first penetration testing project and let our AI-powered framework
             autonomously discover vulnerabilities and generate professional reports.
           </p>
-          <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+          <Link
+            href="/projects/new"
+            className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+          >
             Create Your First Project
-          </button>
+          </Link>
         </div>
       </main>
     </div>
