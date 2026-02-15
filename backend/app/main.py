@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.api import auth, projects
 from app.api import recon as recon_api
 from app.api import port_scan as port_scan_api
+from app.api import http_probe as http_probe_api
 from app.api.sse import router as sse_router
 from app.websocket import router as ws_router
 from app.db import neo4j_client
@@ -84,6 +85,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(projects.router, prefix="/api/projects", tags=["Projects"])
 app.include_router(recon_api.router, tags=["Reconnaissance"])
 app.include_router(port_scan_api.router, tags=["Port Scanning"])
+app.include_router(http_probe_api.router, tags=["HTTP Probing"])
 app.include_router(sse_router, prefix="/api/sse", tags=["Server-Sent Events"])
 app.include_router(ws_router, tags=["WebSocket"])
 

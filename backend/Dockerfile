@@ -28,10 +28,37 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Network tools
     curl \
     wget \
+    nmap \
+    # Node.js and npm (for Wappalyzer)
+    nodejs \
+    npm \
     # Other utilities
     git \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# ==============================================================================
+# GO INSTALLATION (for httpx and other tools)
+# ==============================================================================
+ENV GO_VERSION=1.21.5
+RUN wget -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
+    rm go${GO_VERSION}.linux-amd64.tar.gz
+
+ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
+ENV GOPATH="/root/go"
+
+# ==============================================================================
+# SECURITY TOOLS INSTALLATION
+# ==============================================================================
+# Install httpx (HTTP probing)
+RUN go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
+
+# Install Wappalyzer (Technology detection)
+RUN npm install -g wappalyzer
+
+# Verify installations
+RUN httpx -version && wappalyzer --version && nmap --version
 
 # ==============================================================================
 # PYTHON ENVIRONMENT
