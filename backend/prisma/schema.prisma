@@ -1,0 +1,75 @@
+// Prisma Schema for AutoPenTest AI
+// Database: PostgreSQL
+
+generator client {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// User Management
+// ============================================================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  username     String    @unique
+  fullName     String?   @map("full_name")
+  hashedPassword String  @map("hashed_password")
+  isActive     Boolean   @default(true) @map("is_active")
+  isAdmin      Boolean   @default(false) @map("is_admin")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  
+  // Relationships
+  projects     Project[]
+  
+  @@map("users")
+}
+
+// ============================================================================
+// Project Management
+// ============================================================================
+
+model Project {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  target          String
+  projectType     String   @default("full_assessment") @map("project_type")
+  status          String   @default("draft")
+  
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  
+  // User relationship
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Reconnaissance Configuration
+  enableSubdomainEnum      Boolean @default(true) @map("enable_subdomain_enum")
+  enablePortScan           Boolean @default(true) @map("enable_port_scan")
+  enableWebCrawl           Boolean @default(true) @map("enable_web_crawl")
+  enableTechDetection      Boolean @default(true) @map("enable_tech_detection")
+  
+  // Scanning Configuration
+  enableVulnScan           Boolean @default(true) @map("enable_vuln_scan")
+  enableNuclei             Boolean @default(true) @map("enable_nuclei")
+  
+  // Exploitation Configuration (DISABLED by default for safety)
+  enableAutoExploit        Boolean @default(false) @map("enable_auto_exploit")
+  
+  @@map("projects")
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
