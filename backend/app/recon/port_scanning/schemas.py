@@ -3,7 +3,7 @@ Pydantic schemas for port scanning module
 """
 from typing import Optional, List, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class ScanMode(str, Enum):
@@ -73,13 +73,15 @@ class PortScanRequest(BaseModel):
     banner_grab: bool = Field(True, description="Grab service banners")
     shodan_api_key: Optional[str] = None
     
-    @validator('top_ports')
+    @field_validator('top_ports')
+    @classmethod
     def validate_top_ports(cls, v):
         if v is not None and (v < 1 or v > 65535):
             raise ValueError("top_ports must be between 1 and 65535")
         return v
     
-    @validator('threads')
+    @field_validator('threads')
+    @classmethod
     def validate_threads(cls, v):
         if v is not None and (v < 1 or v > 100):
             raise ValueError("threads must be between 1 and 100")
