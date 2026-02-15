@@ -40,7 +40,6 @@ export default function RegisterPage() {
         email: formData.email,
         username: formData.username,
         password: formData.password,
-        full_name: formData.full_name || undefined,
       });
 
       // Redirect to login

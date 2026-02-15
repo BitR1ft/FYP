@@ -9,6 +9,10 @@ from datetime import datetime
 
 from app.core.config import settings
 from app.api import auth, projects
+from app.api.sse import router as sse_router
+from app.websocket import router as ws_router
+from app.db import neo4j_client
+from app.middleware import setup_middleware
 
 # Configure logging
 logging.basicConfig(
@@ -36,6 +40,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Setup custom middleware
+setup_middleware(app)
+
 
 # Health check endpoint
 @app.get("/", tags=["Health"])
@@ -52,14 +59,20 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Detailed health check endpoint"""
+    # Check Neo4j health
+    neo4j_health = neo4j_client.health_check()
+    
     return {
-        "status": "healthy",
+        "status": "healthy" if neo4j_health.get('healthy', False) else "degraded",
         "timestamp": datetime.utcnow().isoformat(),
         "version": settings.VERSION,
         "services": {
             "api": "operational",
-            "database": "not_configured",  # Will update when DB is connected
-            "neo4j": "not_configured"
+            "database": "not_configured",  # Will update when Prisma is connected
+            "neo4j": neo4j_health.get('status', 'unknown')
+        },
+        "details": {
+            "neo4j": neo4j_health
         }
     }
 
@@ -67,6 +80,8 @@ async def health_check():
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(projects.router, prefix="/api/projects", tags=["Projects"])
+app.include_router(sse_router, prefix="/api/sse", tags=["Server-Sent Events"])
+app.include_router(ws_router, tags=["WebSocket"])
 
 
 # Exception handlers
@@ -89,6 +104,15 @@ async def startup_event():
     """Application startup tasks"""
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
+    
+    # Initialize Neo4j connection
+    try:
+        neo4j_client.connect()
+        logger.info("Neo4j connection initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Neo4j: {e}")
+        logger.warning("Application starting without Neo4j connectivity")
+    
     logger.info("Application startup complete")
 
 
@@ -97,7 +121,15 @@ async def startup_event():
 async def shutdown_event():
     """Application shutdown tasks"""
     logger.info("Shutting down application")
-    # Cleanup tasks will go here (close DB connections, etc.)
+    
+    # Close Neo4j connection
+    try:
+        neo4j_client.close()
+        logger.info("Neo4j connection closed")
+    except Exception as e:
+        logger.error(f"Error closing Neo4j connection: {e}")
+    
+    logger.info("Shutdown complete")
 
 
 if __name__ == "__main__":

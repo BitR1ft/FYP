@@ -26,8 +26,8 @@ export default function ProjectsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await projectsApi.list();
-      setProjects(response.data.projects);
+      const response = await projectsApi.getAll();
+      setProjects(response.data);
     } catch (err: any) {
       if (err.response?.status === 401) {
         router.push('/auth/login');
