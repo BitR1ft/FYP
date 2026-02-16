@@ -148,7 +148,7 @@ npm test
 
 ## 📋 Project Status
 
-**Current Phase**: Month 6 - Resource Enumeration Complete ✅
+**Current Phase**: Month 7 - Vulnerability Scanning Complete ✅
 
 **Completed Months**:
 - ✅ Month 1: Foundation & Environment Setup
@@ -157,8 +157,9 @@ npm test
 - ✅ Month 4: Reconnaissance Pipeline - Phase 2 (Port Scanning)
 - ✅ Month 5: Reconnaissance Pipeline - Phase 3 (HTTP Probing & Technology Detection)
 - ✅ Month 6: Reconnaissance Pipeline - Phase 4 (Resource Enumeration)
+- ✅ Month 7: Vulnerability Scanning (Nuclei Integration, CVE Enrichment & MITRE Mapping)
 
-**Next**: Month 7 - Vulnerability Scanning (Nuclei Integration & CVE Enrichment)
+**Next**: Month 8 - Neo4j Graph Database (Schema Design & Data Ingestion)
 
 See [Year 1 Plan](FYP%20-%20YEAR%2001.md) for detailed progress tracking.
 
