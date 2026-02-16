@@ -49,18 +49,29 @@ class Neo4jClient:
             logger.info("Neo4j connection closed")
     
     def _initialize_schema(self) -> None:
-        """Initialize database constraints and indexes"""
+        """Initialize database constraints and indexes for all 17 node types"""
         with self.driver.session(database=self.database) as session:
-            # Create constraints for unique node properties
+            # Create constraints for unique node properties (all 17 node types)
             constraints = [
+                # Infrastructure nodes
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (d:Domain) REQUIRE d.name IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (s:Subdomain) REQUIRE s.name IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (ip:IP) REQUIRE ip.address IS UNIQUE",
-                "CREATE CONSTRAINT IF NOT EXISTS FOR (p:Port) REQUIRE (p.ip, p.number, p.protocol) IS UNIQUE",
-                "CREATE CONSTRAINT IF NOT EXISTS FOR (v:Vulnerability) REQUIRE v.id IS UNIQUE",
-                "CREATE CONSTRAINT IF NOT EXISTS FOR (c:CVE) REQUIRE c.id IS UNIQUE",
-                "CREATE CONSTRAINT IF NOT EXISTS FOR (s:Service) REQUIRE s.id IS UNIQUE",
-                "CREATE CONSTRAINT IF NOT EXISTS FOR (u:URL) REQUIRE u.url IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (p:Port) REQUIRE p.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (srv:Service) REQUIRE srv.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (u:BaseURL) REQUIRE u.url IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (e:Endpoint) REQUIRE e.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (prm:Parameter) REQUIRE prm.id IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (t:Technology) REQUIRE t.name IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (h:Header) REQUIRE h.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (cert:Certificate) REQUIRE cert.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (dns:DNSRecord) REQUIRE dns.id IS UNIQUE",
+                # Vulnerability and exploit nodes
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (v:Vulnerability) REQUIRE v.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (cve:CVE) REQUIRE cve.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (cwe:MitreData) REQUIRE cwe.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (cap:Capec) REQUIRE cap.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (exp:Exploit) REQUIRE exp.id IS UNIQUE",
             ]
             
             for constraint in constraints:
@@ -70,12 +81,24 @@ class Neo4jClient:
                 except Exception as e:
                     logger.warning(f"Constraint creation failed (may already exist): {e}")
             
-            # Create indexes for performance
+            # Create indexes for performance on commonly queried fields
             indexes = [
+                # Time-based indexes
                 "CREATE INDEX IF NOT EXISTS FOR (d:Domain) ON (d.discovered_at)",
-                "CREATE INDEX IF NOT EXISTS FOR (v:Vulnerability) ON (v.severity)",
+                "CREATE INDEX IF NOT EXISTS FOR (s:Subdomain) ON (s.discovered_at)",
+                "CREATE INDEX IF NOT EXISTS FOR (ip:IP) ON (d:discovered_at)",
                 "CREATE INDEX IF NOT EXISTS FOR (v:Vulnerability) ON (v.discovered_at)",
+                # Severity indexes
+                "CREATE INDEX IF NOT EXISTS FOR (v:Vulnerability) ON (v.severity)",
+                "CREATE INDEX IF NOT EXISTS FOR (cve:CVE) ON (cve.severity)",
+                # State indexes
                 "CREATE INDEX IF NOT EXISTS FOR (p:Port) ON (p.state)",
+                "CREATE INDEX IF NOT EXISTS FOR (u:BaseURL) ON (u.status_code)",
+                # Multi-tenancy indexes
+                "CREATE INDEX IF NOT EXISTS FOR (n:Domain) ON (n.project_id)",
+                "CREATE INDEX IF NOT EXISTS FOR (n:Domain) ON (n.user_id)",
+                "CREATE INDEX IF NOT EXISTS FOR (n:Subdomain) ON (n.project_id)",
+                "CREATE INDEX IF NOT EXISTS FOR (n:Vulnerability) ON (n.project_id)",
             ]
             
             for index in indexes:
