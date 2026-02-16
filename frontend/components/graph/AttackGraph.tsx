@@ -8,7 +8,7 @@ const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
   ssr: false,
 });
 
-const NODE_COLORS: Record<string, string> = {
+export const NODE_COLORS: Record<string, string> = {
   Domain: '#3B82F6',
   Subdomain: '#60A5FA',
   IP: '#8B5CF6',
@@ -78,6 +78,7 @@ interface AttackGraphProps {
   searchTerm?: string;
   width?: number;
   height?: number;
+  graphRef?: React.RefObject<any>;
 }
 
 export default function AttackGraph({
@@ -89,8 +90,10 @@ export default function AttackGraph({
   searchTerm,
   width,
   height,
+  graphRef: externalRef,
 }: AttackGraphProps) {
-  const graphRef = useRef<any>(undefined);
+  const internalRef = useRef<any>(undefined);
+  const graphRef = externalRef || internalRef;
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
   const connectionCounts = useMemo(() => {
