@@ -234,6 +234,56 @@ class ConnectionManager:
         """Get number of connections for a specific project"""
         return len(self.project_rooms.get(project_id, set()))
     
+    async def send_approval_request(
+        self,
+        project_id: str,
+        attack_plan: dict,
+        thread_id: str
+    ) -> None:
+        """
+        Send approval request to project room.
+        """
+        message = {
+            'type': 'approval_request',
+            'project_id': project_id,
+            'thread_id': thread_id,
+            'attack_plan': attack_plan,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        await self.broadcast_to_project(message, project_id)
+
+    async def send_progress_update(
+        self,
+        project_id: str,
+        progress: dict
+    ) -> None:
+        """
+        Send progress update to project room.
+        """
+        message = {
+            'type': 'progress_update',
+            'project_id': project_id,
+            'progress': progress,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        await self.broadcast_to_project(message, project_id)
+
+    async def send_guidance_ack(
+        self,
+        project_id: str,
+        guidance: str
+    ) -> None:
+        """
+        Acknowledge guidance received.
+        """
+        message = {
+            'type': 'guidance_ack',
+            'project_id': project_id,
+            'guidance': guidance,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        await self.broadcast_to_project(message, project_id)
+
     def get_status(self) -> dict:
         """Get connection manager status"""
         return {
