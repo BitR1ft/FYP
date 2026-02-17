@@ -22,6 +22,7 @@ class SSEManager:
         # Store active event generators by project
         self.active_streams: Dict[str, list] = {}
         self.scan_queues: Dict[str, asyncio.Queue] = {}
+        self.scan_queue_lock = asyncio.Lock()
     
     async def scan_event_generator(
         self,
@@ -49,7 +50,8 @@ class SSEManager:
                 })
             }
             
-            queue = self.scan_queues.setdefault(project_id, asyncio.Queue())
+            async with self.scan_queue_lock:
+                queue = self.scan_queues.setdefault(project_id, asyncio.Queue())
 
             # Keep connection alive and stream events
             while True:
@@ -164,7 +166,8 @@ class SSEManager:
             'data': data or {},
             'timestamp': datetime.utcnow().isoformat()
         }
-        queue = self.scan_queues.setdefault(project_id, asyncio.Queue())
+        async with self.scan_queue_lock:
+            queue = self.scan_queues.setdefault(project_id, asyncio.Queue())
         await queue.put(payload)
 
 

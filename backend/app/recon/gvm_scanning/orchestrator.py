@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
+from typing import Optional, List
 
 from app.api.sse import sse_manager
 from app.db.neo4j_client import Neo4jClient
@@ -11,7 +11,7 @@ from app.graph.ingestion import ingest_vulnerability_scan
 from .client import GvmClient
 from .parser import parse_gvm_report, filter_by_severity
 from .profiles import profile_display_name
-from .schemas import GvmScanRequest, GvmScanResult, GvmScanStats
+from .schemas import GvmScanRequest, GvmScanResult, GvmScanStats, GvmVulnerability
 
 
 class GvmScanOrchestrator:
@@ -131,7 +131,7 @@ def _find_config_id(scan_configs_xml: str, config_name: str) -> Optional[str]:
     return None
 
 
-def _build_stats(vulnerabilities) -> GvmScanStats:
+def _build_stats(vulnerabilities: List[GvmVulnerability]) -> GvmScanStats:
     stats = GvmScanStats()
     for vuln in vulnerabilities:
         stats.total_vulnerabilities += 1
@@ -141,7 +141,9 @@ def _build_stats(vulnerabilities) -> GvmScanStats:
     return stats
 
 
-def _deduplicate_vulnerabilities(vulnerabilities):
+def _deduplicate_vulnerabilities(
+    vulnerabilities: List[GvmVulnerability],
+) -> List[GvmVulnerability]:
     seen = set()
     unique = []
     for vuln in vulnerabilities:
@@ -158,7 +160,11 @@ def _deduplicate_vulnerabilities(vulnerabilities):
     return unique
 
 
-def _filter_false_positives(vulnerabilities, exclude_oids, exclude_names):
+def _filter_false_positives(
+    vulnerabilities: List[GvmVulnerability],
+    exclude_oids: List[str],
+    exclude_names: List[str],
+) -> List[GvmVulnerability]:
     exclude_oid_set = {oid.strip() for oid in exclude_oids if oid.strip()}
     exclude_name_set = {name.strip() for name in exclude_names if name.strip()}
     filtered = []
