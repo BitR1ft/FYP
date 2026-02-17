@@ -441,6 +441,20 @@ class MetasploitServer(MCPServer):
                 "target": rhosts
             }
     
+    @staticmethod
+    def _validate_module_path(path: str) -> str:
+        """Validate that a module path only contains safe characters."""
+        if not re.match(r'^[a-zA-Z0-9_/\-]+$', path):
+            raise ValueError(f"Invalid module path: {path}")
+        return path
+
+    @staticmethod
+    def _validate_host(host: str) -> str:
+        """Validate that a host value only contains safe characters."""
+        if not re.match(r'^[a-zA-Z0-9.\-:/,]+$', host):
+            raise ValueError(f"Invalid host value: {host}")
+        return host
+
     async def _execute_module(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute a Metasploit module against a target.
@@ -451,8 +465,8 @@ class MetasploitServer(MCPServer):
         Returns:
             Execution results with session info
         """
-        module_path = params.get("module_path")
-        rhosts = params.get("rhosts")
+        module_path = self._validate_module_path(params.get("module_path", ""))
+        rhosts = self._validate_host(params.get("rhosts", ""))
         rport = params.get("rport")
         payload = params.get("payload")
         lhost = params.get("lhost")
@@ -466,19 +480,21 @@ class MetasploitServer(MCPServer):
         ]
         
         if rport:
-            commands.append(f"set RPORT {rport}")
+            commands.append(f"set RPORT {int(rport)}")
         
         if payload:
-            commands.append(f"set PAYLOAD {payload}")
+            commands.append(f"set PAYLOAD {self._validate_module_path(payload)}")
         
         if lhost:
-            commands.append(f"set LHOST {lhost}")
+            commands.append(f"set LHOST {self._validate_host(lhost)}")
         
         if lport is not None:
-            commands.append(f"set LPORT {lport}")
+            commands.append(f"set LPORT {int(lport)}")
         
         for key, value in options.items():
-            commands.append(f"set {key} {value}")
+            safe_key = re.sub(r'[^a-zA-Z0-9_]', '', str(key))
+            safe_value = re.sub(r'[^a-zA-Z0-9 _\-\./=:@,]', '', str(value))
+            commands.append(f"set {safe_key} {safe_value}")
         
         commands.extend(["run", "exit"])
         
@@ -602,6 +618,24 @@ class MetasploitServer(MCPServer):
                 "error": f"Execution error: {str(e)}"
             }
     
+    @staticmethod
+    def _sanitize_session_command(command: str) -> str:
+        """
+        Sanitize a command to be run inside a Metasploit session.
+
+        Strips shell metacharacters that could escape the msfconsole
+        session context.  Only alphanumeric characters, basic
+        punctuation and common filesystem characters are allowed.
+
+        Args:
+            command: Raw command string
+
+        Returns:
+            Sanitized command string
+        """
+        # Allow only safe characters for session commands
+        return re.sub(r'[^a-zA-Z0-9 _\-\./=:@,]', '', command)
+
     async def _session_command(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute a command in an active Metasploit session.
@@ -614,14 +648,18 @@ class MetasploitServer(MCPServer):
         """
         session_id = params.get("session_id")
         command = params.get("command")
+
+        # Validate inputs
+        session_id = int(session_id)
+        safe_command = self._sanitize_session_command(command)
         
         cmd = [
             "msfconsole",
             "-q",
-            "-x", "sessions -i {} -c {}; exit".format(int(session_id), command.replace("'", "'\\''"))
+            "-x", f"sessions -i {session_id} -c '{safe_command}'; exit"
         ]
         
-        logger.info(f"Executing command in session {session_id}: {command}")
+        logger.info(f"Executing command in session {session_id}: {safe_command}")
         
         try:
             process = await asyncio.create_subprocess_exec(
