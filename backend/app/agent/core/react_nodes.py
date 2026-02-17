@@ -71,7 +71,19 @@ class ReActNodes:
             messages.append(AIMessage(content=f"OBSERVATION: {state['observation']}"))
         
         # Ask LLM to think and decide next action
-        thinking_prompt = """
+        # Get available tools for current phase
+        from ..tools.tool_registry import get_global_registry
+        
+        registry = get_global_registry()
+        available_tools = registry.get_tools_for_phase(state["current_phase"])
+        
+        tool_descriptions = []
+        for tool_name, tool in available_tools.items():
+            tool_descriptions.append(f"- {tool_name}: {tool.description}")
+        
+        tools_list = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+        
+        thinking_prompt = f"""
 Based on the conversation and any observations, think about what to do next.
 
 You should:
@@ -79,9 +91,8 @@ You should:
 2. Decide if you need to use a tool or if you can respond directly
 3. If using a tool, specify which one and what parameters
 
-Available tools:
-- echo: Echo back a message (for testing)
-- calculator: Perform arithmetic operations (add, subtract, multiply, divide)
+Available tools in {state["current_phase"].value} phase:
+{tools_list}
 
 Format your response as:
 THOUGHT: [Your reasoning]
@@ -134,16 +145,20 @@ TOOL_INPUT: [JSON parameters if using a tool, or your response if responding dir
                 "observation": "No tool was selected. Let me think again."
             }
         
-        # Import tools
-        from ..tools import EchoTool, CalculatorTool
+        # Get tool from registry
+        from ..tools.tool_registry import get_global_registry
         
-        # Get the tool
-        tools_map = {
-            "echo": EchoTool(),
-            "calculator": CalculatorTool(),
-        }
+        registry = get_global_registry()
+        current_phase = state.get("current_phase", Phase.INFORMATIONAL)
         
-        tool = tools_map.get(tool_name)
+        # Check if tool is allowed in current phase
+        if not registry.is_tool_allowed(tool_name, current_phase):
+            return {
+                "next_action": "think",
+                "observation": f"Tool '{tool_name}' is not available in {current_phase.value} phase."
+            }
+        
+        tool = registry.get_tool(tool_name)
         if not tool:
             return {
                 "next_action": "think",

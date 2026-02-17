@@ -194,7 +194,25 @@ RUN pip3 install --no-cache-dir --break-system-packages \
     colorama \
     termcolor \
     python-nmap \
-    python-whois
+    python-whois \
+    # MCP Server dependencies (Month 11)
+    fastapi \
+    uvicorn[standard] \
+    pydantic \
+    aiohttp
+
+# ==============================================================================
+# MCP SERVERS SETUP (Month 11)
+# ==============================================================================
+# Create directory for MCP servers
+RUN mkdir -p /app/mcp/servers
+
+# Copy MCP server files (will be mounted from backend)
+# Note: Files will be mounted at runtime via docker-compose volumes
+
+# Copy startup script
+COPY start-mcp-servers.sh /usr/local/bin/start-mcp-servers.sh
+RUN chmod +x /usr/local/bin/start-mcp-servers.sh
 
 # ==============================================================================
 # ADDITIONAL MODERN TOOLS

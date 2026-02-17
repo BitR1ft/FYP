@@ -44,6 +44,10 @@ pydantic-extra-types==2.3.0
 # Security
 cryptography==42.0.0
 
+# HTTP & Networking - Month 11
+aiohttp==3.13.3
+tavily-python==0.5.2
+
 # Reconnaissance tools
 python-whois==0.8.0
 dnspython==2.4.2

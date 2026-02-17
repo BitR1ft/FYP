@@ -230,7 +230,7 @@ services:
   # SECURITY TOOLS TIER - Isolated Security Tools
   # ============================================================================
   
-  # Kali Linux Tools Container - Base Security Tools
+  # Kali Linux Tools Container - Base Security Tools with MCP Servers
   kali-tools:
     build:
       context: ./docker/kali
@@ -243,12 +243,22 @@ services:
       - NET_ADMIN
     environment:
       TOOLS_VERSION: "2024.1"
+      PYTHONPATH: "/app:/app/backend"
+    ports:
+      # MCP Server ports (Month 11)
+      - "8000:8000"  # Naabu MCP Server
+      - "8001:8001"  # Curl MCP Server
+      - "8002:8002"  # Nuclei MCP Server
+      - "8003:8003"  # Metasploit MCP Server
     volumes:
       - kali-tools-data:/root
       - scan-results:/results
       - tool-configs:/configs:ro
+      # Mount MCP servers from backend (Month 11)
+      - ./backend/app/mcp:/app/mcp:ro
     networks:
       - tools-network
+      - backend-network
     command: tail -f /dev/null  # Keep container running
     deploy:
       resources:
