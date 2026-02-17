@@ -25,6 +25,8 @@ class MetasploitServer(MCPServer):
     - search_modules: Search for Metasploit modules
     - get_module_info: Get information about a module
     - execute_module: Execute a Metasploit module (with safety checks)
+    - list_sessions: List active Metasploit sessions
+    - session_command: Execute a command in an active session
     """
     
     def __init__(self):
@@ -98,6 +100,72 @@ class MetasploitServer(MCPServer):
                     },
                     "required": ["module_path", "rhosts"]
                 }
+            ),
+            MCPTool(
+                name="execute_module",
+                description="Execute a Metasploit module against a target.",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "module_path": {
+                            "type": "string",
+                            "description": "Full module path (e.g., 'exploit/windows/smb/ms17_010_eternalblue')"
+                        },
+                        "rhosts": {
+                            "type": "string",
+                            "description": "Target host(s)"
+                        },
+                        "rport": {
+                            "type": "integer",
+                            "description": "Target port (optional)"
+                        },
+                        "payload": {
+                            "type": "string",
+                            "description": "Payload to use (e.g., 'generic/shell_reverse_tcp')"
+                        },
+                        "lhost": {
+                            "type": "string",
+                            "description": "Local host for reverse connections"
+                        },
+                        "lport": {
+                            "type": "integer",
+                            "description": "Local port for reverse connections",
+                            "default": 4444
+                        },
+                        "options": {
+                            "type": "object",
+                            "description": "Additional module options as key-value pairs"
+                        }
+                    },
+                    "required": ["module_path", "rhosts"]
+                }
+            ),
+            MCPTool(
+                name="list_sessions",
+                description="List active Metasploit sessions.",
+                parameters={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
+            MCPTool(
+                name="session_command",
+                description="Execute a command in an active Metasploit session.",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {
+                            "type": "integer",
+                            "description": "Session ID to interact with"
+                        },
+                        "command": {
+                            "type": "string",
+                            "description": "Command to execute in the session"
+                        }
+                    },
+                    "required": ["session_id", "command"]
+                }
             )
         ]
     
@@ -109,6 +177,12 @@ class MetasploitServer(MCPServer):
             return await self._get_module_info(params)
         elif tool_name == "check_target":
             return await self._check_target(params)
+        elif tool_name == "execute_module":
+            return await self._execute_module(params)
+        elif tool_name == "list_sessions":
+            return await self._list_sessions(params)
+        elif tool_name == "session_command":
+            return await self._session_command(params)
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
     
@@ -365,6 +439,216 @@ class MetasploitServer(MCPServer):
                 "error": f"Execution error: {str(e)}",
                 "module": module_path,
                 "target": rhosts
+            }
+    
+    async def _execute_module(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute a Metasploit module against a target.
+        
+        Args:
+            params: Module execution parameters
+            
+        Returns:
+            Execution results with session info
+        """
+        module_path = params.get("module_path")
+        rhosts = params.get("rhosts")
+        rport = params.get("rport")
+        payload = params.get("payload")
+        lhost = params.get("lhost")
+        lport = params.get("lport", 4444)
+        options = params.get("options", {})
+        
+        # Build msfconsole commands
+        commands = [
+            f"use {module_path}",
+            f"set RHOSTS {rhosts}"
+        ]
+        
+        if rport:
+            commands.append(f"set RPORT {rport}")
+        
+        if payload:
+            commands.append(f"set PAYLOAD {payload}")
+        
+        if lhost:
+            commands.append(f"set LHOST {lhost}")
+        
+        if lport is not None:
+            commands.append(f"set LPORT {lport}")
+        
+        for key, value in options.items():
+            commands.append(f"set {key} {value}")
+        
+        commands.extend(["run", "exit"])
+        
+        cmd = [
+            "msfconsole",
+            "-q",
+            "-x", "; ".join(commands)
+        ]
+        
+        logger.info(f"Executing module {module_path} against {rhosts}")
+        logger.info(f"Commands: {'; '.join(commands)}")
+        
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env={"TERM": "dumb"}
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            output = stdout.decode()
+            
+            # Parse output for session creation indicators
+            session_opened = False
+            session_info = None
+            
+            session_match = re.search(r"session (\d+) opened", output, re.IGNORECASE)
+            if not session_match:
+                session_match = re.search(r"Meterpreter session (\d+)", output, re.IGNORECASE)
+            
+            if session_match:
+                session_opened = True
+                session_info = {
+                    "session_id": int(session_match.group(1)),
+                    "type": "meterpreter" if "meterpreter" in output.lower() else "shell"
+                }
+                logger.info(f"Session opened: {session_info}")
+            
+            logger.info(f"Module execution completed. Session opened: {session_opened}")
+            
+            return {
+                "success": True,
+                "module": module_path,
+                "target": rhosts,
+                "session_opened": session_opened,
+                "session_info": session_info,
+                "output": output[-500:]
+            }
+            
+        except Exception as e:
+            logger.error(f"Execute module error: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Execution error: {str(e)}",
+                "module": module_path,
+                "target": rhosts
+            }
+    
+    async def _list_sessions(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        List active Metasploit sessions.
+        
+        Args:
+            params: No parameters required
+            
+        Returns:
+            List of active sessions
+        """
+        cmd = [
+            "msfconsole",
+            "-q",
+            "-x", "sessions -l; exit"
+        ]
+        
+        logger.info("Listing active Metasploit sessions")
+        
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env={"TERM": "dumb"}
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            output = stdout.decode()
+            
+            # Parse session list output
+            sessions = []
+            lines = output.split('\n')
+            
+            in_sessions = False
+            for line in lines:
+                if line.strip().startswith('---'):
+                    in_sessions = True
+                    continue
+                
+                if in_sessions and line.strip():
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[0].isdigit():
+                        session = {
+                            "id": int(parts[0]),
+                            "type": parts[1] if len(parts) > 1 else "unknown",
+                            "info": " ".join(parts[2:]) if len(parts) > 2 else ""
+                        }
+                        sessions.append(session)
+            
+            return {
+                "success": True,
+                "sessions": sessions,
+                "session_count": len(sessions)
+            }
+            
+        except Exception as e:
+            logger.error(f"List sessions error: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Execution error: {str(e)}"
+            }
+    
+    async def _session_command(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute a command in an active Metasploit session.
+        
+        Args:
+            params: Session command parameters
+            
+        Returns:
+            Command output
+        """
+        session_id = params.get("session_id")
+        command = params.get("command")
+        
+        cmd = [
+            "msfconsole",
+            "-q",
+            "-x", "sessions -i {} -c {}; exit".format(int(session_id), command.replace("'", "'\\''"))
+        ]
+        
+        logger.info(f"Executing command in session {session_id}: {command}")
+        
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env={"TERM": "dumb"}
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            output = stdout.decode()
+            
+            return {
+                "success": True,
+                "session_id": session_id,
+                "command": command,
+                "output": output
+            }
+            
+        except Exception as e:
+            logger.error(f"Session command error: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Execution error: {str(e)}",
+                "session_id": session_id,
+                "command": command
             }
 
 
