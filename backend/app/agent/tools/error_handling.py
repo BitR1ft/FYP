@@ -2,6 +2,7 @@
 Tool Error Handling
 
 Defines exceptions and error handling for tool execution.
+Includes structured error categorization and output management.
 """
 
 import asyncio
@@ -11,12 +12,27 @@ from typing import Callable, Any
 
 class ToolExecutionError(Exception):
     """Raised when a tool execution fails"""
-    pass
+    
+    def __init__(self, message: str, tool_name: str = "", recoverable: bool = True):
+        self.tool_name = tool_name
+        self.recoverable = recoverable
+        super().__init__(message)
 
 
 class ToolTimeoutError(ToolExecutionError):
     """Raised when a tool execution times out"""
-    pass
+    
+    def __init__(self, message: str, tool_name: str = "", timeout_seconds: int = 0):
+        self.timeout_seconds = timeout_seconds
+        super().__init__(message, tool_name=tool_name, recoverable=True)
+
+
+class ToolValidationError(ToolExecutionError):
+    """Raised when tool input validation fails"""
+    
+    def __init__(self, message: str, tool_name: str = "", invalid_params: list = None):
+        self.invalid_params = invalid_params or []
+        super().__init__(message, tool_name=tool_name, recoverable=True)
 
 
 def with_timeout(timeout_seconds: int = 300):
@@ -36,8 +52,35 @@ def with_timeout(timeout_seconds: int = 300):
                 )
             except asyncio.TimeoutError:
                 raise ToolTimeoutError(
-                    f"Tool execution timed out after {timeout_seconds} seconds"
+                    f"Tool execution timed out after {timeout_seconds} seconds",
+                    timeout_seconds=timeout_seconds
                 )
+        return wrapper
+    return decorator
+
+
+def with_error_context(tool_name: str):
+    """
+    Decorator to add error context to tool execution.
+    
+    Wraps generic exceptions with ToolExecutionError including tool name.
+    
+    Args:
+        tool_name: Name of the tool for error context
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        async def wrapper(*args, **kwargs) -> Any:
+            try:
+                return await func(*args, **kwargs)
+            except (ToolExecutionError, ToolTimeoutError):
+                raise  # Re-raise our own exceptions
+            except Exception as e:
+                raise ToolExecutionError(
+                    f"{tool_name} failed: {type(e).__name__}: {str(e)}",
+                    tool_name=tool_name,
+                    recoverable=True
+                ) from e
         return wrapper
     return decorator
 

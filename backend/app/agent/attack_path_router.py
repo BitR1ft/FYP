@@ -134,7 +134,8 @@ class AttackPathRouter:
 
     def classify_intent(self, user_message: str) -> AttackCategory:
         """
-        Classify user intent into an attack category using keyword matching.
+        Classify user intent into an attack category using keyword matching
+        with confidence scoring.
 
         Args:
             user_message: Raw message from the user
@@ -142,24 +143,65 @@ class AttackPathRouter:
         Returns:
             Matched AttackCategory
         """
+        result = self.classify_intent_with_confidence(user_message)
+        return result["category"]
+
+    def classify_intent_with_confidence(self, user_message: str) -> Dict:
+        """
+        Classify user intent with confidence scoring and ranked alternatives.
+
+        Args:
+            user_message: Raw message from the user
+
+        Returns:
+            Dict with 'category', 'confidence' (0.0-1.0), and 'alternatives'
+        """
         message_lower = user_message.lower()
-        best_category = AttackCategory.WEB_APP_ATTACK
-        best_score = 0
+        scores: Dict[AttackCategory, int] = {}
+        total_keywords = 0
 
         for category, keywords in self.ATTACK_KEYWORDS.items():
             score = sum(
                 1 for kw in keywords
                 if re.search(r'(?<!\w)' + re.escape(kw) + r'(?!\w)', message_lower)
             )
+            scores[category] = score
+            total_keywords += score
+
+        best_category = AttackCategory.WEB_APP_ATTACK
+        best_score = 0
+
+        for category, score in scores.items():
             if score > best_score:
                 best_score = score
                 best_category = category
 
+        # Calculate confidence as ratio of best score to total matches
+        confidence = best_score / total_keywords if total_keywords > 0 else 0.0
+
+        # Collect ranked alternatives (categories with score > 0, excluding best)
+        alternatives = sorted(
+            [
+                {"category": cat.value, "score": sc}
+                for cat, sc in scores.items()
+                if sc > 0 and cat != best_category
+            ],
+            key=lambda x: x["score"],
+            reverse=True,
+        )
+
         logger.info(
             f"Classified intent as '{best_category.value}' "
-            f"(score={best_score})"
+            f"(score={best_score}, confidence={confidence:.2f}, "
+            f"alternatives={len(alternatives)})"
         )
-        return best_category
+
+        return {
+            "category": best_category,
+            "confidence": confidence,
+            "score": best_score,
+            "alternatives": alternatives,
+        }
 
     def get_attack_plan(
         self, category: AttackCategory, target_info: Dict
