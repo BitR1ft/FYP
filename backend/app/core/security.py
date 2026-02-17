@@ -6,9 +6,12 @@ from typing import Optional, Dict, Any
 from jose import JWTError, jwt
 import hashlib
 import secrets
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.core.config import settings
+
+security = HTTPBearer()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -92,3 +95,28 @@ def decode_token(token: str) -> Dict[str, Any]:
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+    """
+    Dependency to get current user from token
+    
+    Args:
+        credentials: HTTP authorization credentials
+        
+    Returns:
+        Decoded token payload with user information
+        
+    Raises:
+        HTTPException: If credentials are invalid
+    """
+    token_data = decode_token(credentials.credentials)
+    user_id = token_data.get("sub")
+    
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    return token_data

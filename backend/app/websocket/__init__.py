@@ -3,7 +3,6 @@ WebSocket endpoints for real-time communication
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from app.websocket.manager import connection_manager, get_connection_manager
-from app.core.security import verify_token
 import logging
 import json
 
