@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   FolderKanban,
   Network,
+  MessageSquare,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -19,6 +20,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/graph', label: 'Graph Explorer', icon: Network },
+  { href: '/chat', label: 'AI Agent', icon: MessageSquare },
 ];
 
 interface SidebarProps {
