@@ -42,12 +42,15 @@ class GvmScanStartResponse(BaseModel):
 
 _scan_status: Dict[str, GvmScanStatusResponse] = {}
 _scan_results: Dict[str, object] = {}
+# In-memory scan state; replace with persistent storage in production deployments.
+_scan_lock = asyncio.Lock()
 
 
 async def _run_scan(scan_id: str, request: GvmScanRequest) -> None:
-    status = _scan_status[scan_id]
-    status.status = "running"
-    status.updated_at = datetime.utcnow().isoformat()
+    async with _scan_lock:
+        status = _scan_status[scan_id]
+        status.status = "running"
+        status.updated_at = datetime.utcnow().isoformat()
 
     neo4j_client: Optional[Neo4jClient] = None
     try:
@@ -60,16 +63,19 @@ async def _run_scan(scan_id: str, request: GvmScanRequest) -> None:
     try:
         orchestrator = GvmScanOrchestrator(neo4j_client=neo4j_client)
         result = await orchestrator.run_scan(request)
-        _scan_results[scan_id] = result
-        status.task_id = result.task_id
-        status.report_id = result.report_id
-        status.status = "completed"
+        async with _scan_lock:
+            _scan_results[scan_id] = result
+            status.task_id = result.task_id
+            status.report_id = result.report_id
+            status.status = "completed"
     except Exception as exc:
         logger.error("GVM scan failed: %s", exc)
-        status.status = "failed"
-        status.error = str(exc)
+        async with _scan_lock:
+            status.status = "failed"
+            status.error = str(exc)
     finally:
-        status.updated_at = datetime.utcnow().isoformat()
+        async with _scan_lock:
+            status.updated_at = datetime.utcnow().isoformat()
         if neo4j_client:
             neo4j_client.close()
 
@@ -78,11 +84,12 @@ async def _run_scan(scan_id: str, request: GvmScanRequest) -> None:
 async def start_gvm_scan(request: GvmScanRequest):
     scan_id = str(uuid4())
     created_at = datetime.utcnow().isoformat()
-    _scan_status[scan_id] = GvmScanStatusResponse(
-        scan_id=scan_id,
-        status="queued",
-        updated_at=created_at,
-    )
+    async with _scan_lock:
+        _scan_status[scan_id] = GvmScanStatusResponse(
+            scan_id=scan_id,
+            status="queued",
+            updated_at=created_at,
+        )
 
     asyncio.create_task(_run_scan(scan_id, request))
 
@@ -91,7 +98,8 @@ async def start_gvm_scan(request: GvmScanRequest):
 
 @router.get("/scans/{scan_id}", response_model=GvmScanStatusResponse)
 async def get_gvm_scan_status(scan_id: str):
-    status = _scan_status.get(scan_id)
+    async with _scan_lock:
+        status = _scan_status.get(scan_id)
     if not status:
         raise HTTPException(status_code=404, detail="Scan not found")
     return status
@@ -99,7 +107,8 @@ async def get_gvm_scan_status(scan_id: str):
 
 @router.get("/scans/{scan_id}/report")
 async def get_gvm_scan_report(scan_id: str, format: str = "html"):
-    result = _scan_results.get(scan_id)
+    async with _scan_lock:
+        result = _scan_results.get(scan_id)
     if not result:
         raise HTTPException(status_code=404, detail="Report not available")
 

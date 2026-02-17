@@ -122,12 +122,16 @@ def _build_pdf(lines: Iterable[str]) -> bytes:
 
 def generate_pdf_report(result: GvmScanResult) -> bytes:
     """Generate a minimal PDF report from scan results."""
+    max_entries = 50
     lines = [
         "GVM Scan Report",
         f"Task ID: {result.task_id}",
         f"Total vulnerabilities: {result.stats.total_vulnerabilities}",
         "",
     ]
-    for vuln in result.vulnerabilities[:50]:
+    for vuln in result.vulnerabilities[:max_entries]:
         lines.append(f"{vuln.severity.upper()}: {vuln.name} ({vuln.host})")
+    if len(result.vulnerabilities) > max_entries:
+        lines.append("")
+        lines.append(f"Note: Report truncated to {max_entries} findings.")
     return _build_pdf(lines)

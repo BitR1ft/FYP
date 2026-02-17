@@ -23,6 +23,10 @@ class SSEManager:
         self.active_streams: Dict[str, list] = {}
         self.scan_queues: Dict[str, asyncio.Queue] = {}
         self.scan_queue_lock = asyncio.Lock()
+
+    async def _get_scan_queue(self, project_id: str) -> asyncio.Queue:
+        async with self.scan_queue_lock:
+            return self.scan_queues.setdefault(project_id, asyncio.Queue())
     
     async def scan_event_generator(
         self,
@@ -50,8 +54,7 @@ class SSEManager:
                 })
             }
             
-            async with self.scan_queue_lock:
-                queue = self.scan_queues.setdefault(project_id, asyncio.Queue())
+            queue = await self._get_scan_queue(project_id)
 
             # Keep connection alive and stream events
             while True:
@@ -166,8 +169,7 @@ class SSEManager:
             'data': data or {},
             'timestamp': datetime.utcnow().isoformat()
         }
-        async with self.scan_queue_lock:
-            queue = self.scan_queues.setdefault(project_id, asyncio.Queue())
+        queue = await self._get_scan_queue(project_id)
         await queue.put(payload)
 
 

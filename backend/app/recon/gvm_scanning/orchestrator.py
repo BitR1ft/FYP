@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import xml.etree.ElementTree as ET
 from typing import Optional, List
 
 from app.api.sse import sse_manager
@@ -121,8 +122,6 @@ class GvmScanOrchestrator:
 
 
 def _find_config_id(scan_configs_xml: str, config_name: str) -> Optional[str]:
-    import xml.etree.ElementTree as ET
-
     root = ET.fromstring(scan_configs_xml)
     for config in root.findall(".//config"):
         name = config.findtext("name")
