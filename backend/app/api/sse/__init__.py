@@ -21,6 +21,7 @@ class SSEManager:
     def __init__(self):
         # Store active event generators by project
         self.active_streams: Dict[str, list] = {}
+        self.scan_queues: Dict[str, asyncio.Queue] = {}
     
     async def scan_event_generator(
         self,
@@ -48,24 +49,28 @@ class SSEManager:
                 })
             }
             
+            queue = self.scan_queues.setdefault(project_id, asyncio.Queue())
+
             # Keep connection alive and stream events
             while True:
                 # Check if client disconnected
                 if await request.is_disconnected():
                     logger.info(f"SSE client disconnected from project {project_id}")
                     break
-                
-                # Here you would fetch actual scan updates from your scan queue/database
-                # For now, send heartbeat
-                yield {
-                    'event': 'heartbeat',
-                    'data': json.dumps({
-                        'timestamp': datetime.utcnow().isoformat()
-                    })
-                }
-                
-                # Wait before next update
-                await asyncio.sleep(30)  # Heartbeat every 30 seconds
+
+                try:
+                    scan_update = await asyncio.wait_for(queue.get(), timeout=30)
+                    yield {
+                        'event': 'scan_update',
+                        'data': json.dumps(scan_update)
+                    }
+                except asyncio.TimeoutError:
+                    yield {
+                        'event': 'heartbeat',
+                        'data': json.dumps({
+                            'timestamp': datetime.utcnow().isoformat()
+                        })
+                    }
         
         except asyncio.CancelledError:
             logger.info(f"SSE stream cancelled for project {project_id}")
@@ -152,9 +157,15 @@ class SSEManager:
             status: Scan status
             data: Additional data
         """
-        # This would integrate with your event queue system
-        # For now, it's a placeholder
-        pass
+        payload = {
+            'project_id': project_id,
+            'scan_type': scan_type,
+            'status': status,
+            'data': data or {},
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        queue = self.scan_queues.setdefault(project_id, asyncio.Queue())
+        await queue.put(payload)
 
 
 # Global SSE manager

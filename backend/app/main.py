@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 from app.core.config import settings
-from app.api import auth, projects, graph, agent
+from app.api import auth, projects, graph, agent, gvm as gvm_api
 from app.api import recon as recon_api
 from app.api import port_scan as port_scan_api
 from app.api import http_probe as http_probe_api
@@ -87,6 +87,7 @@ app.include_router(graph.router, prefix="/api", tags=["Graph Database"])
 app.include_router(recon_api.router, tags=["Reconnaissance"])
 app.include_router(port_scan_api.router, tags=["Port Scanning"])
 app.include_router(http_probe_api.router, tags=["HTTP Probing"])
+app.include_router(gvm_api.router, prefix="/api", tags=["GVM Scanning"])
 app.include_router(agent.router, prefix="/api", tags=["AI Agent"])
 app.include_router(sse_router, prefix="/api/sse", tags=["Server-Sent Events"])
 app.include_router(ws_router, tags=["WebSocket"])

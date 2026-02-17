@@ -132,6 +132,7 @@ npm run dev
 - [Release Notes](RELEASE_NOTES.md) — v1.0.0 changelog and feature details
 - [API Documentation](docs/API.md) — REST API reference
 - [Architecture Guide](docs/ARCHITECTURE.md) — System architecture and design
+- [GVM/OpenVAS Guide](docs/GVM_OPENVAS_GUIDE.md) — Month 13 network vulnerability scanning
 - [Project Proposal](FYP%20-%20Proposal.md)
 - [Year 1 Development Plan](FYP%20-%20YEAR%2001.md)
 - [Year 2 Roadmap](FYP%20-%20YEAR%2002.md)

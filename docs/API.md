@@ -358,6 +358,40 @@ Detailed health check including service status.
 
 ---
 
+## GVM/OpenVAS Scanning (Month 13)
+
+### Start GVM Scan
+**POST** `/api/gvm/scans`
+
+Start a GVM/OpenVAS scan with the selected profile.
+
+**Request Body:**
+```json
+{
+  "target": {
+    "name": "Internal Lab",
+    "hosts": ["192.168.1.10"],
+    "port_range": "1-65535",
+    "alive_test": "ICMP, TCP-ACK Service & ARP Ping"
+  },
+  "profile": "Full and fast",
+  "minimum_severity": "medium",
+  "exclude_nvt_oids": ["1.3.6.1.4.1.25623.1.0.100000"]
+}
+```
+
+### Get Scan Status
+**GET** `/api/gvm/scans/{scan_id}`
+
+Returns the current scan state (queued, running, completed, failed).
+
+### Fetch Scan Report
+**GET** `/api/gvm/scans/{scan_id}/report?format=html`
+
+Formats: `html`, `xml`, `pdf`, `raw`
+
+---
+
 ## Error Responses
 
 All errors follow this format:

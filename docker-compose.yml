@@ -270,6 +270,38 @@ services:
           memory: 1G
     profiles: ["tools", "dev", "prod"]
 
+  # GVM/OpenVAS Container - Network Vulnerability Scanning (Month 13)
+  gvm:
+    image: greenbone/community-edition:stable
+    container_name: autopentestai-gvm
+    restart: unless-stopped
+    environment:
+      GVM_ADMIN_USER: ${GVM_USERNAME:-admin}
+      GVM_ADMIN_PASSWORD: ${GVM_PASSWORD:-admin}
+    ports:
+      - "9390:9390"  # GMP
+      - "9392:9392"  # Greenbone Web UI
+    volumes:
+      - gvm-data:/var/lib/gvm
+      - gvm-reports:/reports
+    networks:
+      - tools-network
+      - backend-network
+    healthcheck:
+      test: ["CMD", "bash", "-lc", "netstat -an | grep -q 9390"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    profiles: ["tools", "dev", "prod"]
+
   # Reconnaissance Container - Dedicated Recon Tools
   recon-container:
     build:
@@ -388,3 +420,9 @@ volumes:
   tool-configs:
     driver: local
     name: autopentestai-tool-configs
+  gvm-data:
+    driver: local
+    name: autopentestai-gvm-data
+  gvm-reports:
+    driver: local
+    name: autopentestai-gvm-reports

@@ -55,6 +55,13 @@ class Settings(BaseSettings):
     NEO4J_USER: str = "neo4j"
     NEO4J_PASSWORD: str = "autopentestai_dev_password"
     NEO4J_DATABASE: str = "neo4j"
+
+    # GVM/OpenVAS Configuration
+    GVM_HOST: str = "localhost"
+    GVM_PORT: int = 9390
+    GVM_USERNAME: str = "admin"
+    GVM_PASSWORD: str = "admin"
+    GVM_SOCKET_PATH: str = ""
     
     # AI Configuration
     OPENAI_API_KEY: str = ""
