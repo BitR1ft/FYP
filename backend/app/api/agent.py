@@ -250,9 +250,8 @@ async def approve_operation(request: ApproveRequest):
             raise HTTPException(status_code=404, detail=f"No active agent found for thread {thread_id}")
 
         agent = active_agents[thread_id]
-        agent.state["pending_approval"] = request.approved
-
         status = "approved" if request.approved else "rejected"
+        agent.state["pending_approval"] = {"status": status}
 
         return ApproveResponse(
             thread_id=thread_id,
