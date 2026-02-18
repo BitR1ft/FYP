@@ -134,7 +134,11 @@ npm run dev
 - [Architecture Guide](docs/ARCHITECTURE.md) — System architecture and design
 - [Project Proposal](FYP%20-%20Proposal.md)
 - [Year 1 Development Plan](FYP%20-%20YEAR%2001.md)
-- [Year 2 Roadmap](FYP%20-%20YEAR%2002.md)
+- [Year 1 Gap Coverage Plan](YEAR_01_GAP_COVERAGE_PLAN.md) — Day-by-day plan to fill all gaps (215 days)
+- [Gap Coverage Quick Reference](GAP_COVERAGE_QUICK_REFERENCE.md) — Quick access guide and phase summaries
+- [Progress Tracker](PROGRESS_TRACKER.md) — Daily progress tracking template
+- [Gap Analysis](GAP.md) — Detailed gap analysis and requirements
+- [Year 2 Roadmap](PHASE02.md) — Year 2 development plan
 - [Contributing Guidelines](CONTRIBUTING.md)
 - [Interactive API Docs](http://localhost:8000/docs) (when backend is running)
 
