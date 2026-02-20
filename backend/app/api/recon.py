@@ -19,6 +19,7 @@ from app.recon.schemas import (
     DomainDiscoveryResult
 )
 from app.core.security import get_current_user
+from app.utils.job_tracker import JobTracker
 
 logger = logging.getLogger(__name__)
 
@@ -142,41 +143,31 @@ async def run_domain_discovery(
     
     Updates task status and stores results upon completion.
     """
+    tracker = JobTracker(task_id, recon_tasks)
     try:
         logger.info(f"Running domain discovery for {domain} (task: {task_id})")
-        
-        # Update status
-        recon_tasks[task_id]["status"] = "running"
-        recon_tasks[task_id]["progress"] = 10
-        recon_tasks[task_id]["message"] = "Starting domain discovery"
-        recon_tasks[task_id]["updated_at"] = datetime.utcnow().isoformat()
-        
+
+        await tracker.start("Starting domain discovery")
+
         # Initialize discovery
         discovery = DomainDiscovery(
             domain=domain,
             hackertarget_api_key=hackertarget_api_key,
             dns_nameservers=dns_nameservers
         )
-        
+
         # Run discovery
-        recon_tasks[task_id]["progress"] = 25
+        await tracker.progress(25, "Running domain discovery")
         results = await discovery.run()
-        
+
         # Store results
-        recon_tasks[task_id]["status"] = "completed"
-        recon_tasks[task_id]["progress"] = 100
-        recon_tasks[task_id]["message"] = "Discovery completed successfully"
-        recon_tasks[task_id]["results"] = results
-        recon_tasks[task_id]["updated_at"] = datetime.utcnow().isoformat()
-        
+        await tracker.complete(results, result_key="domain_discovery", message="Discovery completed successfully")
+
         logger.info(f"Domain discovery completed for {domain} (task: {task_id})")
-        
+
     except Exception as e:
         logger.error(f"Error in domain discovery task {task_id}: {str(e)}")
-        recon_tasks[task_id]["status"] = "failed"
-        recon_tasks[task_id]["message"] = f"Error: {str(e)}"
-        recon_tasks[task_id]["error"] = str(e)
-        recon_tasks[task_id]["updated_at"] = datetime.utcnow().isoformat()
+        await tracker.fail(str(e))
 
 
 @router.delete("/tasks/{task_id}")

@@ -15,6 +15,7 @@ from app.api import http_probe as http_probe_api
 from app.api.sse import router as sse_router
 from app.websocket import router as ws_router
 from app.db import neo4j_client
+from app.db.prisma_client import get_prisma, disconnect_prisma
 from app.middleware import setup_middleware
 
 # Configure logging
@@ -64,19 +65,35 @@ async def health_check():
     """Detailed health check endpoint"""
     # Check Neo4j health
     neo4j_health = neo4j_client.health_check()
-    
+
+    # Check Prisma / PostgreSQL connectivity
+    db_status = "not_configured"
+    try:
+        db = await get_prisma()
+        await db.execute_raw("SELECT 1")
+        db_status = "healthy"
+    except Exception as exc:
+        logger.warning("PostgreSQL health check failed: %s", exc)
+        db_status = "unavailable"
+
+    overall = (
+        "healthy"
+        if neo4j_health.get("healthy", False) and db_status == "healthy"
+        else "degraded"
+    )
+
     return {
-        "status": "healthy" if neo4j_health.get('healthy', False) else "degraded",
+        "status": overall,
         "timestamp": datetime.utcnow().isoformat(),
         "version": settings.VERSION,
         "services": {
             "api": "operational",
-            "database": "not_configured",  # Will update when Prisma is connected
-            "neo4j": neo4j_health.get('status', 'unknown')
+            "database": db_status,
+            "neo4j": neo4j_health.get("status", "unknown"),
         },
         "details": {
-            "neo4j": neo4j_health
-        }
+            "neo4j": neo4j_health,
+        },
     }
 
 
@@ -120,6 +137,14 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to initialize Neo4j: {e}")
         logger.warning("Application starting without Neo4j connectivity")
+
+    # Initialize Prisma / PostgreSQL connection
+    try:
+        await get_prisma()
+        logger.info("Prisma client connected to PostgreSQL")
+    except Exception as e:
+        logger.error(f"Failed to connect Prisma to PostgreSQL: {e}")
+        logger.warning("Application starting without PostgreSQL connectivity")
     
     logger.info("Application startup complete")
 
@@ -136,6 +161,12 @@ async def shutdown_event():
         logger.info("Neo4j connection closed")
     except Exception as e:
         logger.error(f"Error closing Neo4j connection: {e}")
+
+    # Disconnect Prisma client
+    try:
+        await disconnect_prisma()
+    except Exception as e:
+        logger.error(f"Error disconnecting Prisma: {e}")
     
     logger.info("Shutdown complete")
 

@@ -15,6 +15,7 @@ from ..recon.http_probing import (
     HttpProbeResult,
     ProbeMode
 )
+from app.utils.job_tracker import JobTracker
 
 logger = logging.getLogger(__name__)
 
@@ -71,33 +72,35 @@ async def start_http_probe(
 
 async def execute_http_probe(task_id: str, request: HttpProbeRequest):
     """Background task for HTTP probing"""
+    tracker = JobTracker(task_id, probe_results)
     try:
         logger.info(f"Executing HTTP probe task {task_id}")
-        
+
         # Run probe
         orchestrator = HttpProbeOrchestrator(request)
         result = await orchestrator.run()
-        
-        # Store result
-        probe_results[task_id] = {
-            "status": "completed",
-            "started_at": probe_results[task_id]["started_at"],
+
+        # Store result in in-memory dict (legacy callers read this directly)
+        probe_results[task_id].update({
             "completed_at": datetime.utcnow(),
             "result": result,
-            "error": None
-        }
-        
+        })
+        result_data = result.model_dump() if hasattr(result, "model_dump") else result
+        await tracker.complete(
+            result_data,
+            result_key="http_probe",
+            message="HTTP probe completed successfully",
+        )
+
         logger.info(f"HTTP probe task {task_id} completed successfully")
-        
+
     except Exception as e:
         logger.error(f"HTTP probe task {task_id} failed: {e}")
-        probe_results[task_id] = {
-            "status": "failed",
-            "started_at": probe_results[task_id]["started_at"],
+        probe_results[task_id].update({
             "completed_at": datetime.utcnow(),
-            "result": None,
-            "error": str(e)
-        }
+            "error": str(e),
+        })
+        await tracker.fail(str(e))
 
 
 @router.get("/results/{task_id}")
