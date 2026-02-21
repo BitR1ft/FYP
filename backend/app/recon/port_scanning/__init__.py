@@ -17,6 +17,7 @@ from .shodan_integration import ShodanScanner
 from .port_orchestrator import PortScanOrchestrator
 from .naabu_orchestrator import NaabuOrchestrator, NaabuConfig
 from .nmap_orchestrator import NmapOrchestrator, NmapConfig
+from .shodan_orchestrator import ShodanOrchestrator, ShodanOrchestratorConfig
 from .schemas import (
     PortScanRequest,
     PortScanResult,
@@ -38,6 +39,8 @@ __all__ = [
     "NaabuConfig",
     "NmapOrchestrator",
     "NmapConfig",
+    "ShodanOrchestrator",
+    "ShodanOrchestratorConfig",
     "PortScanRequest",
     "PortScanResult",
     "ServiceInfo",

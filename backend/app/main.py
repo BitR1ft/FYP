@@ -15,6 +15,7 @@ from app.api import port_scan as port_scan_api
 from app.api import http_probe as http_probe_api
 from app.api import scans_ports as scans_ports_api
 from app.api import scans_nuclei as scans_nuclei_api
+from app.api import discovery_urls as discovery_urls_api
 from app.api.sse import router as sse_router
 from app.websocket import router as ws_router
 from app.db import neo4j_client
@@ -186,6 +187,7 @@ app.include_router(port_scan_api.router, tags=["Port Scanning"])
 app.include_router(http_probe_api.router, tags=["HTTP Probing"])
 app.include_router(scans_ports_api.router, tags=["Port Scans"])
 app.include_router(scans_nuclei_api.router, tags=["Nuclei Scans"])
+app.include_router(discovery_urls_api.router, tags=["URL Discovery"])
 app.include_router(agent.router, prefix="/api", tags=["AI Agent"])
 app.include_router(sse_router, prefix="/api/sse", tags=["Server-Sent Events"])
 app.include_router(ws_router, tags=["WebSocket"])

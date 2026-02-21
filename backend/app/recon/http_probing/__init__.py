@@ -15,6 +15,7 @@ from .http_probe import HttpProbe
 from .tls_inspector import TLSInspector
 from .tech_detector import TechDetector
 from .wappalyzer_wrapper import WappalyzerWrapper
+from .wappalyzer_orchestrator import WappalyzerOrchestrator, WappalyzerOrchestratorConfig
 from .favicon_hasher import FaviconHasher
 from .http_orchestrator import HttpProbeOrchestrator
 from .schemas import (
@@ -32,6 +33,8 @@ __all__ = [
     'TLSInspector',
     'TechDetector',
     'WappalyzerWrapper',
+    'WappalyzerOrchestrator',
+    'WappalyzerOrchestratorConfig',
     'FaviconHasher',
     'HttpProbeOrchestrator',
     'HttpProbeRequest',

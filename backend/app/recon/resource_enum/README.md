@@ -386,6 +386,59 @@ resource_enum/
 └── README.md             # This file
 ```
 
+## 🆕 Week 7 Additions (Days 42-48)
+
+### Module Structure
+
+```
+app/recon/resource_enum/
+├── katana_wrapper.py          # Low-level sync Katana wrapper (Month 6)
+├── katana_orchestrator.py     # ✅ NEW – canonical KatanaOrchestrator (Day 42-43)
+├── gau_wrapper.py             # Low-level async GAU wrapper (Month 6)
+├── gau_orchestrator.py        # ✅ NEW – canonical GAUOrchestrator (Day 44)
+├── kiterunner_wrapper.py      # Low-level sync Kiterunner wrapper (Month 6)
+├── kiterunner_orchestrator.py # ✅ NEW – canonical KiterunnerOrchestrator (Day 45)
+├── url_merger.py              # ✅ NEW – URLMerger pipeline (Day 46)
+├── resource_orchestrator.py   # High-level coordinator (Month 6)
+├── schemas.py                 # Pydantic models
+└── README.md
+```
+
+### KatanaOrchestrator (`katana_orchestrator.py`)
+Canonical BaseOrchestrator extension for Katana:
+- Async `create_subprocess_exec` execution
+- `KatanaConfig`: depth, JS rendering, scope enforcement, form extraction, rate limit
+- `_normalise()` maps Katana JSON → canonical `Endpoint` objects with parameter extraction
+- `crawl_targets()` classmethod for concurrent multi-host crawling
+
+### GAUOrchestrator (`gau_orchestrator.py`)
+Canonical BaseOrchestrator extension for Get All URLs:
+- All 4 providers: Wayback Machine, Common Crawl, AlienVault OTX, URLScan.io
+- `GAUConfig`: provider selection, blacklist, subdomain inclusion, URL cap
+- `_normalise()` maps raw URLs → canonical `Endpoint` objects with provenance tracking
+- `fetch_targets()` classmethod for concurrent fetching
+
+### KiterunnerOrchestrator (`kiterunner_orchestrator.py`)
+Canonical BaseOrchestrator extension for API endpoint brute-forcing:
+- `KiterunnerConfig`: built-in wordlist resolution (`routes-large`/`routes-small`), custom paths, threads, rate limit
+- Text-output fallback parser for legacy Kiterunner versions
+- `_normalise()` maps Kiterunner JSON → canonical `Endpoint` objects tagged `["api-brute", "kiterunner"]`
+
+### URLMerger (`url_merger.py`)
+Multi-source URL deduplication and classification pipeline:
+- URL normalisation (lowercase, strip fragment, sort query params, remove trailing slash)
+- Multi-source merge with provenance tracking (`extra["sources"]`)
+- URL categorisation: `auth > api > admin > file > sensitive > static > dynamic > unknown`
+- Confidence scoring: liveness × source-count × method × parameters
+- `URLMerger.stats()` summary dict
+
+### /api/discovery/urls REST Endpoints
+- `POST /api/discovery/urls` – start discovery (tool selection, per-tool config)
+- `GET  /api/discovery/urls/{task_id}` – poll status + stats
+- `GET  /api/discovery/urls/{task_id}/results` – results with `?category=`, `?source=`, `?min_confidence=` filters
+
+---
+
 ## Author
 
 **Muhammad Adeel Haider** (BSCYS-F24 A)  
