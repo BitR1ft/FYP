@@ -1,20 +1,28 @@
 """
 Pytest configuration
+
+Week 3 note: auth.py and projects.py now delegate to AuthService /
+ProjectService via Prisma.  The in-memory `users_db` and `projects_db` stubs
+still exist for backward-compat, but are not used by the live endpoints.
+Integration tests override the FastAPI dependencies to inject mock services.
 """
 import pytest
 
 
 @pytest.fixture(autouse=True)
 def reset_databases():
-    """Reset in-memory databases before each test"""
+    """
+    Clear the legacy in-memory stub dicts between tests.
+
+    These dicts are no longer used by the refactored endpoints, but test
+    modules that were written against the old API may still reference them.
+    """
     from app.api import auth, projects
-    
-    # Clear in-memory stores
+
     auth.users_db.clear()
     projects.projects_db.clear()
-    
+
     yield
-    
-    # Cleanup after test
+
     auth.users_db.clear()
     projects.projects_db.clear()

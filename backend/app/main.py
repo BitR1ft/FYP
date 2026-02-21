@@ -4,6 +4,7 @@ AutoPenTest AI - Main Application Entry Point
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import asyncio
 import logging
 from datetime import datetime
 
@@ -15,6 +16,7 @@ from app.api import http_probe as http_probe_api
 from app.api.sse import router as sse_router
 from app.websocket import router as ws_router
 from app.db import neo4j_client
+from app.db.prisma_client import get_prisma, disconnect_prisma
 from app.middleware import setup_middleware
 
 # Configure logging
@@ -64,20 +66,113 @@ async def health_check():
     """Detailed health check endpoint"""
     # Check Neo4j health
     neo4j_health = neo4j_client.health_check()
-    
+
+    # Check Prisma / PostgreSQL connectivity
+    db_status = "not_configured"
+    try:
+        db = await get_prisma()
+        await db.execute_raw("SELECT 1")
+        db_status = "healthy"
+    except Exception as exc:
+        logger.warning("PostgreSQL health check failed: %s", exc)
+        db_status = "unavailable"
+
+    overall = (
+        "healthy"
+        if neo4j_health.get("healthy", False) and db_status == "healthy"
+        else "degraded"
+    )
+
     return {
-        "status": "healthy" if neo4j_health.get('healthy', False) else "degraded",
+        "status": overall,
         "timestamp": datetime.utcnow().isoformat(),
         "version": settings.VERSION,
         "services": {
             "api": "operational",
-            "database": "not_configured",  # Will update when Prisma is connected
-            "neo4j": neo4j_health.get('status', 'unknown')
+            "database": db_status,
+            "neo4j": neo4j_health.get("status", "unknown"),
         },
         "details": {
-            "neo4j": neo4j_health
-        }
+            "neo4j": neo4j_health,
+        },
     }
+
+
+@app.get("/readiness", tags=["Health"])
+async def readiness_check():
+    """
+    Kubernetes-style readiness probe.
+
+    Returns 200 only when **all** required services (PostgreSQL and Neo4j) are
+    reachable.  Returns 503 otherwise so that load balancers / orchestrators can
+    route traffic away from an unready pod.
+    """
+    checks: dict = {}
+    ready = True
+
+    # PostgreSQL via Prisma
+    try:
+        db = await get_prisma()
+        await db.execute_raw("SELECT 1")
+        checks["postgresql"] = "ready"
+    except Exception as exc:
+        logger.warning("Readiness: PostgreSQL not ready – %s", exc)
+        checks["postgresql"] = "not_ready"
+        ready = False
+
+    # Neo4j
+    neo4j_health = neo4j_client.health_check()
+    if neo4j_health.get("healthy"):
+        checks["neo4j"] = "ready"
+    else:
+        checks["neo4j"] = "not_ready"
+        ready = False
+
+    if not ready:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "not_ready",
+                "timestamp": datetime.utcnow().isoformat(),
+                "checks": checks,
+            },
+        )
+
+    return {
+        "status": "ready",
+        "timestamp": datetime.utcnow().isoformat(),
+        "checks": checks,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Internal helper: connect Prisma with exponential-backoff retries
+# ---------------------------------------------------------------------------
+
+async def _connect_prisma_with_retry(max_attempts: int = 5, base_delay: float = 2.0) -> None:
+    """
+    Attempt to establish the Prisma / PostgreSQL connection, retrying with
+    exponential back-off if the database is not yet available (e.g. during
+    Docker Compose start-up).
+    """
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await get_prisma()
+            logger.info("Prisma client connected to PostgreSQL (attempt %d)", attempt)
+            return
+        except Exception as exc:
+            if attempt == max_attempts:
+                logger.error(
+                    "Prisma connection failed after %d attempts: %s", max_attempts, exc
+                )
+                logger.warning("Application starting without PostgreSQL connectivity")
+                return
+            delay = base_delay * (2 ** (attempt - 1))
+            logger.warning(
+                "PostgreSQL not ready (attempt %d/%d), retrying in %.1fs – %s",
+                attempt, max_attempts, delay, exc,
+            )
+            await asyncio.sleep(delay)
 
 
 # Include routers
@@ -120,6 +215,9 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to initialize Neo4j: {e}")
         logger.warning("Application starting without Neo4j connectivity")
+
+    # Initialize Prisma / PostgreSQL connection (with retry)
+    await _connect_prisma_with_retry()
     
     logger.info("Application startup complete")
 
@@ -136,6 +234,12 @@ async def shutdown_event():
         logger.info("Neo4j connection closed")
     except Exception as e:
         logger.error(f"Error closing Neo4j connection: {e}")
+
+    # Disconnect Prisma client
+    try:
+        await disconnect_prisma()
+    except Exception as e:
+        logger.error(f"Error disconnecting Prisma: {e}")
     
     logger.info("Shutdown complete")
 

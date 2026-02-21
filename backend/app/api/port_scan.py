@@ -16,6 +16,7 @@ from app.recon.port_scanning import (
     PortScanResult
 )
 from app.core.security import get_current_user
+from app.utils.job_tracker import JobTracker
 
 logger = logging.getLogger(__name__)
 
@@ -30,29 +31,24 @@ async def execute_port_scan(task_id: str, request: PortScanRequest, user_id: str
     """
     Background task to execute port scanning
     """
+    tracker = JobTracker(task_id, port_scan_tasks)
     try:
         logger.info(f"Executing port scan task {task_id}")
-        
-        # Update task status
-        port_scan_tasks[task_id]["status"] = "running"
-        port_scan_tasks[task_id]["updated_at"] = datetime.now().isoformat()
-        
+        await tracker.start("Starting port scan")
+
         # Create orchestrator and run scan
         orchestrator = PortScanOrchestrator(request)
         result = await orchestrator.run()
-        
+
         # Store results
-        port_scan_tasks[task_id]["status"] = "completed"
         port_scan_tasks[task_id]["result"] = result.model_dump()
-        port_scan_tasks[task_id]["updated_at"] = datetime.now().isoformat()
-        
+        await tracker.complete(result.model_dump(), result_key="port_scan", message="Port scan completed successfully")
+
         logger.info(f"Port scan task {task_id} completed successfully")
-        
+
     except Exception as e:
         logger.error(f"Port scan task {task_id} failed: {str(e)}")
-        port_scan_tasks[task_id]["status"] = "failed"
-        port_scan_tasks[task_id]["error"] = str(e)
-        port_scan_tasks[task_id]["updated_at"] = datetime.now().isoformat()
+        await tracker.fail(str(e))
 
 
 @router.post("/scan", response_model=Dict[str, Any])

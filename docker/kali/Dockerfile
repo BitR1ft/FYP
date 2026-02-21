@@ -195,6 +195,8 @@ RUN pip3 install --no-cache-dir --break-system-packages \
     termcolor \
     python-nmap \
     python-whois \
+    # HTTP fingerprinting helpers (Week 4)
+    mmh3==4.1.0 \
     # MCP Server dependencies (Month 11)
     fastapi \
     uvicorn[standard] \
@@ -215,27 +217,57 @@ COPY start-mcp-servers.sh /usr/local/bin/start-mcp-servers.sh
 RUN chmod +x /usr/local/bin/start-mcp-servers.sh
 
 # ==============================================================================
-# ADDITIONAL MODERN TOOLS
+# GO TOOLCHAIN
 # ==============================================================================
-# Install Go (for modern tools like nuclei, subfinder, etc.)
 RUN apt-get install -y --no-install-recommends golang-go
 
 # Set up Go environment
 ENV GOPATH=/root/go
 ENV PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
 
-# Install modern reconnaissance tools
-RUN go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest && \
-    go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
-    go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest && \
-    go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest && \
-    go install -v github.com/projectdiscovery/katana/cmd/katana@latest && \
-    go install -v github.com/tomnomnom/waybackurls@latest && \
-    go install -v github.com/tomnomnom/httprobe@latest && \
-    go install -v github.com/ffuf/ffuf/v2@latest
+# ==============================================================================
+# MODERN RECON TOOLS – PINNED VERSIONS (Week 4, Day 23)
+#
+# Versions are pinned to ensure reproducible builds.
+# Update the version tags here when you want to upgrade a tool.
+# ==============================================================================
 
-# Update nuclei templates
-RUN nuclei -update-templates
+# projectdiscovery/naabu – fast port scanner
+RUN go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@v2.3.3
+
+# projectdiscovery/nuclei – vulnerability scanner
+RUN go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.3.9
+
+# projectdiscovery/httpx – HTTP probing / fingerprinting
+RUN go install -v github.com/projectdiscovery/httpx/cmd/httpx@v1.6.10
+
+# projectdiscovery/katana – next-gen web crawler
+RUN go install -v github.com/projectdiscovery/katana/cmd/katana@v1.1.2
+
+# projectdiscovery/subfinder – passive subdomain enumeration
+RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.7
+
+# lc/gau – get all URLs (Wayback, Common Crawl, OTX, URLScan)
+RUN go install -v github.com/lc/gau/v2/cmd/gau@v2.2.4
+
+# assetnote/kiterunner – API endpoint discovery
+RUN go install -v github.com/assetnote/kiterunner/cmd/kr@v1.0.2
+
+# tomnomnom utilities
+RUN go install -v github.com/tomnomnom/waybackurls@latest && \
+    go install -v github.com/tomnomnom/httprobe@latest
+
+# ffuf – fast web fuzzer
+RUN go install -v github.com/ffuf/ffuf/v2@v2.1.0
+
+# Update nuclei templates after binary install
+RUN nuclei -update-templates || true
+
+# ==============================================================================
+# WAPPALYZER CLI (Node.js based technology detection)
+# ==============================================================================
+RUN apt-get install -y --no-install-recommends nodejs npm && \
+    npm install -g wappalyzer-cli@latest
 
 # ==============================================================================
 # WORDLISTS SETUP
@@ -273,15 +305,21 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD nmap --version || exit 1
 
 # ==============================================================================
-# METADATA
+# METADATA – document pinned tool versions
 # ==============================================================================
-# Document installed tool versions
 RUN echo "=== Kali Tools Container - Installed Versions ===" > /root/tool-versions.txt && \
-    echo "Nmap: $(nmap --version | head -1)" >> /root/tool-versions.txt && \
-    echo "Metasploit: $(msfconsole --version)" >> /root/tool-versions.txt && \
-    echo "Nuclei: $(nuclei --version)" >> /root/tool-versions.txt && \
-    echo "Python: $(python3 --version)" >> /root/tool-versions.txt && \
-    echo "Go: $(go version)" >> /root/tool-versions.txt
+    echo "Nmap:      $(nmap --version | head -1)" >> /root/tool-versions.txt && \
+    echo "Metasploit: $(msfconsole --version 2>/dev/null || echo 'not available')" >> /root/tool-versions.txt && \
+    echo "Nuclei:    $(nuclei --version 2>&1 | head -1)" >> /root/tool-versions.txt && \
+    echo "Naabu:     $(naabu --version 2>&1 | head -1)" >> /root/tool-versions.txt && \
+    echo "httpx:     $(httpx --version 2>&1 | head -1)" >> /root/tool-versions.txt && \
+    echo "Katana:    $(katana --version 2>&1 | head -1)" >> /root/tool-versions.txt && \
+    echo "Subfinder: $(subfinder --version 2>&1 | head -1)" >> /root/tool-versions.txt && \
+    echo "gau:       $(gau --version 2>&1 | head -1)" >> /root/tool-versions.txt && \
+    echo "ffuf:      $(ffuf --version 2>&1 | head -1)" >> /root/tool-versions.txt && \
+    echo "Python:    $(python3 --version)" >> /root/tool-versions.txt && \
+    echo "Go:        $(go version)" >> /root/tool-versions.txt && \
+    echo "Node:      $(node --version)" >> /root/tool-versions.txt
 
 # Default command (keep container running)
 CMD ["tail", "-f", "/dev/null"]
