@@ -24,6 +24,9 @@ from .schemas import (
     CVEEnrichmentConfig,
     MITREConfig,
 )
+from .nuclei_orchestrator import NucleiOrchestrator, NucleiOrchestratorConfig
+from .template_updater import NucleiTemplateUpdater, TemplateVersionInfo
+from .interactsh_client import InteractshClient, OOBInteraction
 
 __all__ = [
     "ScanMode",
@@ -40,4 +43,10 @@ __all__ = [
     "NucleiConfig",
     "CVEEnrichmentConfig",
     "MITREConfig",
+    "NucleiOrchestrator",
+    "NucleiOrchestratorConfig",
+    "NucleiTemplateUpdater",
+    "TemplateVersionInfo",
+    "InteractshClient",
+    "OOBInteraction",
 ]

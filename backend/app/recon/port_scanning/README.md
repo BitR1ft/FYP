@@ -113,7 +113,9 @@ python -m pytest tests/recon/port_scanning/ --cov=app.recon.port_scanning --cov-
 ```
 app/recon/port_scanning/
 ├── __init__.py           # Exports
-├── port_scan.py          # Naabu wrapper
+├── port_scan.py          # Naabu wrapper (low-level)
+├── naabu_orchestrator.py # ✅ NEW – canonical NaabuOrchestrator (Day 28-31)
+├── nmap_orchestrator.py  # ✅ NEW – NmapOrchestrator for service detection (Day 33)
 ├── service_detection.py  # Nmap + IANA
 ├── banner_grabber.py     # Banner grabbing
 ├── cdn_detector.py       # CDN detection

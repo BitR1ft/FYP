@@ -15,6 +15,9 @@ from .banner_grabber import BannerGrabber
 from .cdn_detector import CDNDetector
 from .shodan_integration import ShodanScanner
 from .port_orchestrator import PortScanOrchestrator
+from .naabu_orchestrator import NaabuOrchestrator, NaabuConfig
+from .nmap_orchestrator import NmapOrchestrator, NmapConfig
+from .shodan_orchestrator import ShodanOrchestrator, ShodanOrchestratorConfig
 from .schemas import (
     PortScanRequest,
     PortScanResult,
@@ -32,6 +35,12 @@ __all__ = [
     "CDNDetector",
     "ShodanScanner",
     "PortScanOrchestrator",
+    "NaabuOrchestrator",
+    "NaabuConfig",
+    "NmapOrchestrator",
+    "NmapConfig",
+    "ShodanOrchestrator",
+    "ShodanOrchestratorConfig",
     "PortScanRequest",
     "PortScanResult",
     "ServiceInfo",

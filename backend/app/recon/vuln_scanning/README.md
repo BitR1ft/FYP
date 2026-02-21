@@ -338,6 +338,40 @@ for vuln in vuln_result.vulnerabilities:
 - [MITRE CAPEC](https://capec.mitre.org/)
 - [CVSS Specification](https://www.first.org/cvss/)
 
+---
+
+## 🆕 Week 6 Additions (Days 35-41)
+
+### NucleiOrchestrator (`nuclei_orchestrator.py`)
+Canonical BaseOrchestrator extension for Nuclei:
+- Async subprocess execution via `asyncio.create_subprocess_exec`
+- Configurable severity filter, tag include/exclude, Interactsh OOB
+- `_normalise()` maps Nuclei JSON → canonical `Finding` objects
+- CVE & CWE extraction from template classification fields
+- `scan_targets()` classmethod for concurrent multi-host scanning
+
+### NucleiTemplateUpdater (`template_updater.py`)
+Template lifecycle management:
+- `update()` – async `nuclei -update-templates` execution
+- Version detection via `nuclei -version`
+- Persistent audit history in `~/.autopentestai/nuclei_templates_state.json`
+- Optional APScheduler-based scheduled refresh (`start_scheduler()`)
+
+### InteractshClient (`interactsh_client.py`)
+OOB interaction detection for blind vulnerabilities:
+- Async context manager with HTTP session management
+- Unique correlation ID generation
+- Payload helpers: DNS, HTTP, Log4Shell/JNDI, SSRF
+- `poll()` for continuous interaction capture
+- `on_interaction()` callback registration
+
+### /api/scans/nuclei REST Endpoints
+- `POST /api/scans/nuclei` – start a scan (returns task_id)
+- `GET  /api/scans/nuclei/{task_id}` – poll status
+- `GET  /api/scans/nuclei/{task_id}/results` – retrieve findings
+
+---
+
 ## 👨‍💻 Author
 
 **Muhammad Adeel Haider**
