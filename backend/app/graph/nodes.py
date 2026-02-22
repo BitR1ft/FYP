@@ -917,3 +917,274 @@ class CredentialNode(BaseNode):
         properties = self._add_tenant_info(properties, user_id, project_id)
         
         return self.client.create_node('Credential', properties, merge=True)
+
+
+class EvidenceNode(BaseNode):
+    """Evidence node — proof supporting a vulnerability finding."""
+
+    def create(
+        self,
+        evidence_id: str,
+        evidence_type: str,
+        content: str,
+        source_url: Optional[str] = None,
+        description: Optional[str] = None,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Create an Evidence node.
+
+        Args:
+            evidence_id: Unique evidence identifier
+            evidence_type: Type of evidence (request, response, screenshot, log)
+            content: Raw evidence content (request/response body, log line, etc.)
+            source_url: URL where evidence was captured
+            description: Human-readable description
+            user_id: User identifier for multi-tenancy
+            project_id: Project identifier for multi-tenancy
+            **kwargs: Additional properties
+
+        Returns:
+            Created node properties
+        """
+        properties = {
+            'id': evidence_id,
+            'evidence_type': evidence_type,
+            'content': content,
+            'discovered_at': datetime.utcnow().isoformat(),
+        }
+
+        if source_url:
+            properties['source_url'] = source_url
+        if description:
+            properties['description'] = description
+
+        properties.update(kwargs)
+        properties = self._add_tenant_info(properties, user_id, project_id)
+
+        return self.client.create_node('Evidence', properties, merge=True)
+
+
+class ToolNode(BaseNode):
+    """Tool node — a scanning or exploitation tool used during assessment."""
+
+    def create(
+        self,
+        name: str,
+        version: Optional[str] = None,
+        tool_type: Optional[str] = None,
+        description: Optional[str] = None,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Create a Tool node.
+
+        Args:
+            name: Tool name (e.g., 'nuclei', 'nmap', 'naabu')
+            version: Tool version string
+            tool_type: Category (scanner, exploit, crawler, fuzzer, etc.)
+            description: Brief tool description
+            user_id: User identifier for multi-tenancy
+            project_id: Project identifier for multi-tenancy
+            **kwargs: Additional properties
+
+        Returns:
+            Created node properties
+        """
+        properties = {
+            'name': name,
+            'discovered_at': datetime.utcnow().isoformat(),
+        }
+
+        if version:
+            properties['version'] = version
+        if tool_type:
+            properties['tool_type'] = tool_type
+        if description:
+            properties['description'] = description
+
+        properties.update(kwargs)
+        properties = self._add_tenant_info(properties, user_id, project_id)
+
+        # Composite unique identifier includes version so different tool versions
+        # can coexist in the graph.
+        properties['id'] = f"{name}:{version or 'unknown'}"
+
+        return self.client.create_node('Tool', properties, merge=True)
+
+
+class ScanNode(BaseNode):
+    """Scan node — a single tool-execution instance within a project."""
+
+    def create(
+        self,
+        scan_id: str,
+        tool_name: str,
+        target: str,
+        status: str = "completed",
+        started_at: Optional[str] = None,
+        completed_at: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Create a Scan node.
+
+        Args:
+            scan_id: Unique scan identifier (UUID)
+            tool_name: Name of the tool that ran this scan
+            target: Scan target (domain, IP, URL)
+            status: Execution status (pending, running, completed, failed)
+            started_at: ISO 8601 start timestamp
+            completed_at: ISO 8601 completion timestamp
+            config: Tool configuration used for this scan
+            user_id: User identifier for multi-tenancy
+            project_id: Project identifier for multi-tenancy
+            **kwargs: Additional properties
+
+        Returns:
+            Created node properties
+        """
+        properties = {
+            'id': scan_id,
+            'tool_name': tool_name,
+            'target': target,
+            'status': status,
+            'created_at': datetime.utcnow().isoformat(),
+        }
+
+        if started_at:
+            properties['started_at'] = started_at
+        if completed_at:
+            properties['completed_at'] = completed_at
+        if config:
+            import json
+            properties['config'] = json.dumps(config)
+
+        properties.update(kwargs)
+        properties = self._add_tenant_info(properties, user_id, project_id)
+
+        return self.client.create_node('Scan', properties, merge=True)
+
+
+class FindingNode(BaseNode):
+    """Finding node — a discrete observation produced by a scan."""
+
+    def create(
+        self,
+        finding_id: str,
+        title: str,
+        severity: str,
+        finding_type: str,
+        target: Optional[str] = None,
+        description: Optional[str] = None,
+        remediation: Optional[str] = None,
+        confidence: Optional[float] = None,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Create a Finding node.
+
+        Args:
+            finding_id: Unique finding identifier (UUID or hash)
+            title: Short finding title
+            severity: Severity level (info, low, medium, high, critical)
+            finding_type: Category (vuln, misconfig, exposure, info, etc.)
+            target: Target where the finding was observed
+            description: Detailed description
+            remediation: Recommended remediation steps
+            confidence: Detection confidence score (0.0–1.0)
+            user_id: User identifier for multi-tenancy
+            project_id: Project identifier for multi-tenancy
+            **kwargs: Additional properties
+
+        Returns:
+            Created node properties
+        """
+        properties = {
+            'id': finding_id,
+            'title': title,
+            'severity': severity,
+            'finding_type': finding_type,
+            'discovered_at': datetime.utcnow().isoformat(),
+        }
+
+        if target:
+            properties['target'] = target
+        if description:
+            properties['description'] = description
+        if remediation:
+            properties['remediation'] = remediation
+        if confidence is not None:
+            properties['confidence'] = confidence
+
+        properties.update(kwargs)
+        properties = self._add_tenant_info(properties, user_id, project_id)
+
+        return self.client.create_node('Finding', properties, merge=True)
+
+
+class AuditEventNode(BaseNode):
+    """Audit event node — immutable record of a significant system action."""
+
+    def create(
+        self,
+        event_id: str,
+        event_type: str,
+        actor: str,
+        action: str,
+        resource_type: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        outcome: str = "success",
+        details: Optional[str] = None,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Create an AuditEvent node.
+
+        Args:
+            event_id: Unique event identifier (UUID)
+            event_type: Type of event (scan_started, finding_created, etc.)
+            actor: User or system that triggered the event
+            action: Verb describing the action (created, updated, deleted, etc.)
+            resource_type: Type of affected resource (Scan, Project, etc.)
+            resource_id: ID of the affected resource
+            outcome: Result of the action (success, failure, partial)
+            details: Additional context as a string (JSON or plain text)
+            user_id: User identifier for multi-tenancy
+            project_id: Project identifier for multi-tenancy
+            **kwargs: Additional properties
+
+        Returns:
+            Created node properties
+        """
+        properties = {
+            'id': event_id,
+            'event_type': event_type,
+            'actor': actor,
+            'action': action,
+            'outcome': outcome,
+            'timestamp': datetime.utcnow().isoformat(),
+        }
+
+        if resource_type:
+            properties['resource_type'] = resource_type
+        if resource_id:
+            properties['resource_id'] = resource_id
+        if details:
+            properties['details'] = details
+
+        properties.update(kwargs)
+        properties = self._add_tenant_info(properties, user_id, project_id)
+
+        return self.client.create_node('AuditEvent', properties, merge=True)

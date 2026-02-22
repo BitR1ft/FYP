@@ -351,3 +351,135 @@ def link_exploit_ip(
         'TARGETED_IP',
         rel_props or None
     )
+
+
+# ── Session & Credential relationships ──────────────────────────────────────
+
+def link_exploit_session(
+    client: Neo4jClient,
+    exploit_id: str,
+    session_id: str,
+    **rel_props
+) -> bool:
+    """Create ESTABLISHED_SESSION relationship from Exploit to Session."""
+    return create_relationship(
+        client,
+        'Exploit', 'id', exploit_id,
+        'Session', 'id', session_id,
+        'ESTABLISHED_SESSION',
+        rel_props or None
+    )
+
+
+def link_session_ip(
+    client: Neo4jClient,
+    session_id: str,
+    ip_address: str,
+    **rel_props
+) -> bool:
+    """Create OPENED_ON relationship from Session to IP."""
+    return create_relationship(
+        client,
+        'Session', 'id', session_id,
+        'IP', 'address', ip_address,
+        'OPENED_ON',
+        rel_props or None
+    )
+
+
+def link_session_credential(
+    client: Neo4jClient,
+    session_id: str,
+    credential_id: str,
+    **rel_props
+) -> bool:
+    """Create HAS_CREDENTIAL relationship from Session to Credential."""
+    return create_relationship(
+        client,
+        'Session', 'id', session_id,
+        'Credential', 'id', credential_id,
+        'HAS_CREDENTIAL',
+        rel_props or None
+    )
+
+
+def link_credential_service(
+    client: Neo4jClient,
+    credential_id: str,
+    service_id: str,
+    **rel_props
+) -> bool:
+    """Create VALIDATES_FOR relationship from Credential to Service."""
+    return create_relationship(
+        client,
+        'Credential', 'id', credential_id,
+        'Service', 'id', service_id,
+        'VALIDATES_FOR',
+        rel_props or None
+    )
+
+
+# ── Tool, Scan, Finding & Evidence relationships ─────────────────────────────
+
+def link_tool_scan(
+    client: Neo4jClient,
+    tool_id: str,
+    scan_id: str,
+    **rel_props
+) -> bool:
+    """Create PERFORMED_SCAN relationship from Tool to Scan."""
+    return create_relationship(
+        client,
+        'Tool', 'id', tool_id,
+        'Scan', 'id', scan_id,
+        'PERFORMED_SCAN',
+        rel_props or None
+    )
+
+
+def link_scan_finding(
+    client: Neo4jClient,
+    scan_id: str,
+    finding_id: str,
+    **rel_props
+) -> bool:
+    """Create PRODUCED_FINDING relationship from Scan to Finding."""
+    return create_relationship(
+        client,
+        'Scan', 'id', scan_id,
+        'Finding', 'id', finding_id,
+        'PRODUCED_FINDING',
+        rel_props or None
+    )
+
+
+def link_finding_evidence(
+    client: Neo4jClient,
+    finding_id: str,
+    evidence_id: str,
+    **rel_props
+) -> bool:
+    """Create SUPPORTED_BY relationship from Finding to Evidence."""
+    return create_relationship(
+        client,
+        'Finding', 'id', finding_id,
+        'Evidence', 'id', evidence_id,
+        'SUPPORTED_BY',
+        rel_props or None
+    )
+
+
+def link_finding_vulnerability(
+    client: Neo4jClient,
+    finding_id: str,
+    vulnerability_id: str,
+    **rel_props
+) -> bool:
+    """Create RELATED_TO relationship from Finding to Vulnerability."""
+    return create_relationship(
+        client,
+        'Finding', 'id', finding_id,
+        'Vulnerability', 'id', vulnerability_id,
+        'RELATED_TO',
+        rel_props or None
+    )

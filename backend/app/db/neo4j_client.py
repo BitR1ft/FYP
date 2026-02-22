@@ -72,6 +72,14 @@ class Neo4jClient:
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (cwe:MitreData) REQUIRE cwe.id IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (cap:Capec) REQUIRE cap.id IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (exp:Exploit) REQUIRE exp.id IS UNIQUE",
+                # Advanced / operational nodes
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (sess:Session) REQUIRE sess.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (cred:Credential) REQUIRE cred.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (ev:Evidence) REQUIRE ev.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (tool:Tool) REQUIRE tool.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (scan:Scan) REQUIRE scan.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (f:Finding) REQUIRE f.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (ae:AuditEvent) REQUIRE ae.id IS UNIQUE",
             ]
             
             for constraint in constraints:
