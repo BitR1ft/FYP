@@ -72,6 +72,14 @@ class Neo4jClient:
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (cwe:MitreData) REQUIRE cwe.id IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (cap:Capec) REQUIRE cap.id IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (exp:Exploit) REQUIRE exp.id IS UNIQUE",
+                # Advanced / operational nodes
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (sess:Session) REQUIRE sess.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (cred:Credential) REQUIRE cred.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (ev:Evidence) REQUIRE ev.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (tool:Tool) REQUIRE tool.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (scan:Scan) REQUIRE scan.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (f:Finding) REQUIRE f.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (ae:AuditEvent) REQUIRE ae.id IS UNIQUE",
             ]
             
             for constraint in constraints:
@@ -283,6 +291,134 @@ class Neo4jClient:
         
         result = self.execute_query(query, {'project_id': project_id})
         return result[0]['deleted_count'] if result else 0
+
+    def get_relationship_stats(self, project_id: str) -> Dict[str, Any]:
+        """
+        Get relationship statistics for a project.
+
+        Args:
+            project_id: Project identifier
+
+        Returns:
+            Dict with relationship type counts and total
+        """
+        query = """
+        MATCH (a {project_id: $project_id})-[r]->(b)
+        WHERE b.project_id = $project_id OR b.project_id IS NULL
+        RETURN type(r) AS relationship_type, count(r) AS count
+        ORDER BY count DESC
+        """
+        try:
+            result = self.execute_query(query, {'project_id': project_id})
+            rel_counts = {r['relationship_type']: r['count'] for r in result}
+            return {
+                'relationship_counts': rel_counts,
+                'total_relationships': sum(rel_counts.values()),
+            }
+        except Exception as e:
+            logger.error(f"Failed to get relationship stats: {e}")
+            return {'relationship_counts': {}, 'total_relationships': 0}
+
+    def get_graph_health_metrics(self, project_id: str) -> Dict[str, Any]:
+        """
+        Compute graph health metrics for a project.
+
+        Metrics:
+          - node_count: total nodes
+          - relationship_count: total relationships
+          - isolated_nodes: nodes with no relationships
+          - orphaned_vulnerabilities: vulnerabilities not linked to any endpoint
+          - orphaned_ips: IPs with no ports
+          - schema_coverage: fraction of expected labels present
+
+        Args:
+            project_id: Project identifier
+
+        Returns:
+            Health metrics dictionary
+        """
+        metrics: Dict[str, Any] = {'project_id': project_id}
+
+        # Total nodes
+        try:
+            res = self.execute_query(
+                "MATCH (n {project_id: $project_id}) RETURN count(n) AS cnt",
+                {'project_id': project_id},
+            )
+            metrics['node_count'] = res[0]['cnt'] if res else 0
+        except Exception:
+            metrics['node_count'] = 0
+
+        # Total relationships (where at least source node belongs to project)
+        try:
+            res = self.execute_query(
+                "MATCH (a {project_id: $project_id})-[r]->() RETURN count(r) AS cnt",
+                {'project_id': project_id},
+            )
+            metrics['relationship_count'] = res[0]['cnt'] if res else 0
+        except Exception:
+            metrics['relationship_count'] = 0
+
+        # Isolated nodes (nodes with degree = 0)
+        try:
+            res = self.execute_query(
+                """
+                MATCH (n {project_id: $project_id})
+                WHERE NOT (n)--()
+                RETURN count(n) AS cnt
+                """,
+                {'project_id': project_id},
+            )
+            metrics['isolated_nodes'] = res[0]['cnt'] if res else 0
+        except Exception:
+            metrics['isolated_nodes'] = 0
+
+        # Orphaned vulnerabilities (no FOUND_AT or HAS_VULNERABILITY edges)
+        try:
+            res = self.execute_query(
+                """
+                MATCH (v:Vulnerability {project_id: $project_id})
+                WHERE NOT (v)-[:FOUND_AT]->()
+                  AND NOT ()-[:HAS_VULNERABILITY]->(v)
+                RETURN count(v) AS cnt
+                """,
+                {'project_id': project_id},
+            )
+            metrics['orphaned_vulnerabilities'] = res[0]['cnt'] if res else 0
+        except Exception:
+            metrics['orphaned_vulnerabilities'] = 0
+
+        # Orphaned IPs (no HAS_PORT edges)
+        try:
+            res = self.execute_query(
+                """
+                MATCH (ip:IP {project_id: $project_id})
+                WHERE NOT (ip)-[:HAS_PORT]->()
+                RETURN count(ip) AS cnt
+                """,
+                {'project_id': project_id},
+            )
+            metrics['orphaned_ips'] = res[0]['cnt'] if res else 0
+        except Exception:
+            metrics['orphaned_ips'] = 0
+
+        # Schema coverage: number of distinct node labels vs expected 24
+        try:
+            res = self.execute_query(
+                """
+                MATCH (n {project_id: $project_id})
+                WITH labels(n) AS lbls
+                UNWIND lbls AS lbl
+                RETURN count(DISTINCT lbl) AS cnt
+                """,
+                {'project_id': project_id},
+            )
+            observed = res[0]['cnt'] if res else 0
+            metrics['schema_coverage'] = round(observed / 24, 3)
+        except Exception:
+            metrics['schema_coverage'] = 0.0
+
+        return metrics
     
     def health_check(self) -> Dict[str, Any]:
         """

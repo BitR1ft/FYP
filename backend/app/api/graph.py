@@ -335,3 +335,189 @@ async def get_stats(
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/stats/{project_id}/relationships")
+async def get_relationship_stats(
+    project_id: str,
+    client: Neo4jClient = Depends(get_neo4j_client),
+) -> Dict[str, Any]:
+    """
+    Get relationship-level statistics for a project.
+
+    Returns per-type relationship counts and the total across all types.
+    """
+    try:
+        data = client.get_relationship_stats(project_id)
+        return {"success": True, "project_id": project_id, **data}
+    except Exception as e:
+        logger.error(f"Error getting relationship stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/stats/{project_id}/health")
+async def get_graph_health_metrics(
+    project_id: str,
+    client: Neo4jClient = Depends(get_neo4j_client),
+) -> Dict[str, Any]:
+    """
+    Compute and return health metrics for the project graph.
+
+    Metrics include node/relationship counts, isolated nodes,
+    orphaned vulnerabilities/IPs, and schema coverage fraction.
+    """
+    try:
+        metrics = client.get_graph_health_metrics(project_id)
+        return {"success": True, **metrics}
+    except Exception as e:
+        logger.error(f"Error getting health metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/attack-surface/{project_id}/services")
+async def get_exposed_services(
+    project_id: str,
+    user_id: Optional[str] = None,
+    client: Neo4jClient = Depends(get_neo4j_client),
+) -> Dict[str, Any]:
+    """
+    List all publicly exposed services with IP, port, and service details.
+    """
+    try:
+        from app.graph.graph_queries import AttackSurfaceQueries
+        qs = AttackSurfaceQueries(client)
+        services = qs.get_exposed_services(project_id, user_id=user_id)
+        return {
+            "success": True,
+            "project_id": project_id,
+            "count": len(services),
+            "services": services,
+        }
+    except Exception as e:
+        logger.error(f"Error getting exposed services: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/attack-surface/{project_id}/overview")
+async def get_attack_surface_overview(
+    project_id: str,
+    user_id: Optional[str] = None,
+    client: Neo4jClient = Depends(get_neo4j_client),
+) -> Dict[str, Any]:
+    """
+    Return an aggregate overview of the project's attack surface
+    (domain, subdomain, IP, port, service, endpoint counts).
+    """
+    try:
+        from app.graph.graph_queries import AttackSurfaceQueries
+        qs = AttackSurfaceQueries(client)
+        overview = qs.get_attack_surface_overview(project_id, user_id=user_id)
+        return {"success": True, "project_id": project_id, "overview": overview}
+    except Exception as e:
+        logger.error(f"Error getting overview: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/vulnerabilities/{project_id}/exploitable")
+async def get_exploitable_vulnerabilities(
+    project_id: str,
+    user_id: Optional[str] = None,
+    min_cvss: float = 7.0,
+    client: Neo4jClient = Depends(get_neo4j_client),
+) -> Dict[str, Any]:
+    """
+    Return vulnerabilities with associated CVEs above the CVSS threshold,
+    ordered by exploitability (CVSS score, exploit count).
+    """
+    try:
+        from app.graph.graph_queries import VulnerabilityQueries
+        qs = VulnerabilityQueries(client)
+        vulns = qs.get_exploitable_vulnerabilities(
+            project_id, user_id=user_id, min_cvss=min_cvss
+        )
+        return {
+            "success": True,
+            "project_id": project_id,
+            "min_cvss": min_cvss,
+            "count": len(vulns),
+            "vulnerabilities": vulns,
+        }
+    except Exception as e:
+        logger.error(f"Error getting exploitable vulns: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/vulnerabilities/{project_id}/cve-chain/{cve_id}")
+async def get_cve_chain(
+    project_id: str,
+    cve_id: str,
+    user_id: Optional[str] = None,
+    client: Neo4jClient = Depends(get_neo4j_client),
+) -> Dict[str, Any]:
+    """
+    Return the full CVE → CWE → CAPEC knowledge chain for a specific CVE.
+    """
+    try:
+        from app.graph.graph_queries import VulnerabilityQueries
+        qs = VulnerabilityQueries(client)
+        chain = qs.get_cve_chain(project_id, cve_id, user_id=user_id)
+        return {
+            "success": True,
+            "project_id": project_id,
+            "cve_id": cve_id,
+            "chain": chain,
+        }
+    except Exception as e:
+        logger.error(f"Error getting CVE chain: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/paths/{project_id}/attack")
+async def get_attack_paths(
+    project_id: str,
+    user_id: Optional[str] = None,
+    max_depth: int = 5,
+    client: Neo4jClient = Depends(get_neo4j_client),
+) -> Dict[str, Any]:
+    """
+    Discover all attack paths from exposed IPs to vulnerable endpoints.
+    """
+    try:
+        from app.graph.graph_queries import PathFindingQueries
+        qs = PathFindingQueries(client)
+        paths = qs.discover_attack_paths(
+            project_id, user_id=user_id, max_depth=max_depth
+        )
+        return {
+            "success": True,
+            "project_id": project_id,
+            "count": len(paths),
+            "paths": paths,
+        }
+    except Exception as e:
+        logger.error(f"Error getting attack paths: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/paths/{project_id}/critical")
+async def get_critical_paths(
+    project_id: str,
+    user_id: Optional[str] = None,
+    client: Neo4jClient = Depends(get_neo4j_client),
+) -> Dict[str, Any]:
+    """
+    Identify the highest-risk attack paths (critical/high severity + CVSS + exploits).
+    """
+    try:
+        from app.graph.graph_queries import PathFindingQueries
+        qs = PathFindingQueries(client)
+        paths = qs.identify_critical_paths(project_id, user_id=user_id)
+        return {
+            "success": True,
+            "project_id": project_id,
+            "count": len(paths),
+            "paths": paths,
+        }
+    except Exception as e:
+        logger.error(f"Error getting critical paths: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
