@@ -11,13 +11,21 @@ from enum import Enum
 # User Schemas
 # ============================================================================
 
+class UserRole(str, Enum):
+    """User role enumeration"""
+    ADMIN = "admin"
+    ANALYST = "analyst"
+    VIEWER = "viewer"
+
+
 class UserCreate(BaseModel):
     """Schema for user registration"""
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8, max_length=100)
     full_name: Optional[str] = Field(None, max_length=100)
-    
+    role: UserRole = UserRole.ANALYST
+
     @validator('username')
     def username_alphanumeric(cls, v):
         assert v.replace('_', '').replace('-', '').isalnum(), 'Username must be alphanumeric'
@@ -38,7 +46,8 @@ class UserResponse(BaseModel):
     full_name: Optional[str]
     is_active: bool
     created_at: datetime
-    
+    role: UserRole = UserRole.ANALYST
+
     class Config:
         from_attributes = True
 

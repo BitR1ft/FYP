@@ -224,6 +224,13 @@ async def startup_event():
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
 
+    # Validate secrets (warns in dev, raises in production)
+    try:
+        from app.core.secrets import validate_secrets
+        validate_secrets(settings.ENVIRONMENT)
+    except Exception as secrets_err:
+        logger.warning("Secrets validation: %s", secrets_err)
+
     # Configure OpenTelemetry tracing
     try:
         from app.core.tracing import configure_tracing
