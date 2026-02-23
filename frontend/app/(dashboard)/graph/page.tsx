@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Network, Maximize, RotateCcw, Loader2, AlertCircle } from 'lucide-react';
+import { Network, Maximize, RotateCcw, Loader2, AlertCircle, Layers } from 'lucide-react';
 import Link from 'next/link';
 import type { GraphNode } from '@/lib/api';
 import { useAttackSurface, useGraphStats } from '@/hooks/useGraph';
 import { useProjects, useProject } from '@/hooks/useProjects';
 import AttackGraph from '@/components/graph/AttackGraph';
+import AttackGraph3D from '@/components/graph/AttackGraph3D';
 import NodeInspector from '@/components/graph/NodeInspector';
 import GraphFilterPanel from '@/components/graph/GraphFilterPanel';
 import GraphExport from '@/components/graph/GraphExport';
@@ -36,7 +37,8 @@ export default function GraphExplorerPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typesInitialized, setTypesInitialized] = useState(false);
 
-  // Data fetching
+  // 2D / 3D toggle
+  const [is3D, setIs3D] = useState(false);
   const { data: surfaceData, isLoading: surfaceLoading, error: surfaceError } = useAttackSurface(projectId || '');
   const { data: statsData } = useGraphStats(projectId || '');
   const { data: projectData } = useProject(projectId || '');
@@ -190,6 +192,22 @@ export default function GraphExplorerPage() {
         <div className="flex items-center gap-2">
           <GraphExport graphRef={graphRef} nodes={nodes} relationships={relationships} />
           <div className="w-px h-5 bg-gray-700" />
+          {/* 2D / 3D toggle */}
+          <button
+            onClick={() => setIs3D((v) => !v)}
+            title={is3D ? 'Switch to 2D view' : 'Switch to 3D view'}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+              is3D
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            }`}
+            aria-pressed={is3D}
+            aria-label={is3D ? 'Switch to 2D view' : 'Switch to 3D view'}
+          >
+            <Layers className="h-4 w-4" />
+            {is3D ? '3D' : '2D'}
+          </button>
+          <div className="w-px h-5 bg-gray-700" />
           <button
             onClick={handleZoomToFit}
             title="Zoom to fit"
@@ -221,17 +239,30 @@ export default function GraphExplorerPage() {
 
         {/* Center graph */}
         <div className="flex-1 min-w-0 bg-gray-900">
-          <AttackGraph
-            nodes={nodes}
-            relationships={relationships}
-            onNodeClick={handleNodeClick}
-            selectedNodeId={selectedNode?.id ?? null}
-            highlightTypes={selectedTypes.length === nodeTypes.length ? undefined : selectedTypes}
-            searchTerm={searchTerm}
-            width={graphWidth}
-            height={graphHeight}
-            graphRef={graphRef}
-          />
+          {is3D ? (
+            <AttackGraph3D
+              nodes={nodes}
+              relationships={relationships}
+              onNodeClick={handleNodeClick}
+              selectedNodeId={selectedNode?.id ?? null}
+              highlightTypes={selectedTypes.length === nodeTypes.length ? undefined : selectedTypes}
+              searchTerm={searchTerm}
+              width={graphWidth}
+              height={graphHeight}
+            />
+          ) : (
+            <AttackGraph
+              nodes={nodes}
+              relationships={relationships}
+              onNodeClick={handleNodeClick}
+              selectedNodeId={selectedNode?.id ?? null}
+              highlightTypes={selectedTypes.length === nodeTypes.length ? undefined : selectedTypes}
+              searchTerm={searchTerm}
+              width={graphWidth}
+              height={graphHeight}
+              graphRef={graphRef}
+            />
+          )}
         </div>
 
         {/* Right inspector panel */}

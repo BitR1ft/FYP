@@ -17,6 +17,7 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.core.audit import AuditAction, log_audit
 from app.core.security import decode_token
 from app.db.prisma_client import get_prisma
 from app.schemas import (
@@ -108,6 +109,7 @@ async def create_project(
     - **project_type**: Assessment type (default: `full_assessment`)
     """
     project = await svc.create_project(user_id, project_data)
+    log_audit(AuditAction.PROJECT_CREATE, actor_id=user_id, target_id=project.id, target_type="project")
     return _to_response(project)
 
 
@@ -174,6 +176,7 @@ async def update_project(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
+    log_audit(AuditAction.PROJECT_UPDATE, actor_id=user_id, target_id=project_id, target_type="project")
     return _to_response(updated)
 
 
@@ -190,6 +193,7 @@ async def delete_project(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
+    log_audit(AuditAction.PROJECT_DELETE, actor_id=user_id, target_id=project_id, target_type="project")
     return Message(message="Project deleted successfully")
 
 
@@ -211,4 +215,5 @@ async def start_project(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
+    log_audit(AuditAction.PROJECT_START, actor_id=user_id, target_id=project_id, target_type="project")
     return _to_response(project)

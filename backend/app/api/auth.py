@@ -16,6 +16,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.core.audit import AuditAction, log_audit
 from app.core.security import decode_token
 from app.db.prisma_client import get_prisma
 from app.schemas import Message, Token, UserCreate, UserLogin, UserResponse
@@ -80,6 +81,7 @@ async def register(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
+    log_audit(AuditAction.USER_REGISTER, actor_id=user.id, target_type="user", success=True)
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -105,9 +107,11 @@ async def login(
         token = await svc.login(credentials.username, credentials.password)
     except ValueError as exc:
         detail = str(exc)
+        log_audit(AuditAction.USER_LOGIN_FAILED, details={"username": credentials.username}, success=False)
         if "inactive" in detail:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
+    log_audit(AuditAction.USER_LOGIN, details={"username": credentials.username}, success=True)
     return token
 
 
@@ -144,6 +148,7 @@ async def refresh_token(
         token = await svc.refresh(credentials.credentials)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc))
+    log_audit(AuditAction.TOKEN_REFRESH, success=True)
     return token
 
 
@@ -158,6 +163,7 @@ async def logout(
     Pass the **refresh** token (not the access token).
     """
     await svc.logout(credentials.credentials)
+    log_audit(AuditAction.USER_LOGOUT, success=True)
     return Message(message="Logged out successfully")
 
 

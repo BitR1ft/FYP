@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     
     # Logging
     LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"
+    LOG_CORRELATION_ID_HEADER: str = "X-Request-ID"
     
     class Config:
         env_file = ".env"

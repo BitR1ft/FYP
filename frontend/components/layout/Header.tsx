@@ -16,6 +16,8 @@ const breadcrumbMap: Record<string, string> = {
   new: 'New Project',
   edit: 'Edit',
   graph: 'Graph Explorer',
+  profile: 'Profile',
+  chat: 'AI Agent',
 };
 
 export function Header({ onMobileMenuToggle }: HeaderProps) {
@@ -105,6 +107,13 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
                   <p className="text-sm text-white font-medium">{user?.username}</p>
                   <p className="text-xs text-gray-400">{user?.email}</p>
                 </div>
+              <Link
+                  href="/profile"
+                  onClick={() => setDropdownOpen(false)}
+                  className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                >
+                  Profile
+                </Link>
                 <Link
                   href="/dashboard"
                   onClick={() => setDropdownOpen(false)}

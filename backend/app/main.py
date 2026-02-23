@@ -19,10 +19,15 @@ from app.api import discovery_urls as discovery_urls_api
 from app.api import cve_enrichment as cve_enrichment_api
 from app.api import enrichment_api as enrichment_cwe_api
 from app.api.sse import router as sse_router
+from app.api.metrics import router as metrics_router
 from app.websocket import router as ws_router
 from app.db import neo4j_client
 from app.db.prisma_client import get_prisma, disconnect_prisma
 from app.middleware import setup_middleware
+from app.core.logging import configure_logging
+
+# Configure structured logging early
+configure_logging(log_level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
 
 # Configure logging
 logging.basicConfig(
@@ -195,6 +200,7 @@ app.include_router(enrichment_cwe_api.router, tags=["CWE/CAPEC Enrichment"])
 app.include_router(agent.router, prefix="/api", tags=["AI Agent"])
 app.include_router(sse_router, prefix="/api/sse", tags=["Server-Sent Events"])
 app.include_router(ws_router, tags=["WebSocket"])
+app.include_router(metrics_router, tags=["Observability"])
 
 
 # Exception handlers
@@ -217,6 +223,20 @@ async def startup_event():
     """Application startup tasks"""
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
+
+    # Validate secrets (warns in dev, raises in production)
+    try:
+        from app.core.secrets import validate_secrets
+        validate_secrets(settings.ENVIRONMENT)
+    except Exception as secrets_err:
+        logger.warning("Secrets validation: %s", secrets_err)
+
+    # Configure OpenTelemetry tracing
+    try:
+        from app.core.tracing import configure_tracing
+        configure_tracing(app, service_version=settings.VERSION)
+    except Exception as tracing_err:
+        logger.warning("OpenTelemetry tracing not configured: %s", tracing_err)
     
     # Initialize Neo4j connection
     try:

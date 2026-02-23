@@ -21,6 +21,7 @@ const navItems = [
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/graph', label: 'Graph Explorer', icon: Network },
   { href: '/chat', label: 'AI Agent', icon: MessageSquare },
+  { href: '/profile', label: 'Profile', icon: User },
 ];
 
 interface SidebarProps {

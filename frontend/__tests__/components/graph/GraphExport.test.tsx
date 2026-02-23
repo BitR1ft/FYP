@@ -38,12 +38,12 @@ describe('GraphExport', () => {
     jest.clearAllMocks();
   });
 
-  it('renders three export buttons', () => {
+  it('renders five export buttons', () => {
     render(
       <GraphExport graphRef={mockGraphRef} nodes={mockNodes} relationships={mockRelationships} />
     );
     const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(3);
+    expect(buttons).toHaveLength(5);
   });
 
   it('PNG button exists with correct title', () => {
