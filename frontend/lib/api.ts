@@ -20,6 +20,62 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Token refresh on 401 – retry original request once with new token
+let isRefreshing = false;
+let refreshQueue: Array<(token: string) => void> = [];
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      typeof window !== 'undefined'
+    ) {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) return Promise.reject(error);
+
+      originalRequest._retry = true;
+
+      if (isRefreshing) {
+        return new Promise<string>((resolve) => {
+          refreshQueue.push(resolve);
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        });
+      }
+
+      isRefreshing = true;
+      try {
+        const res = await axios.post(`${API_URL}/auth/refresh`, { refresh_token: refreshToken });
+        const newToken: string = res.data.access_token;
+        localStorage.setItem('access_token', newToken);
+        if (res.data.refresh_token) {
+          localStorage.setItem('refresh_token', res.data.refresh_token);
+        }
+        refreshQueue.forEach((cb) => cb(newToken));
+        refreshQueue = [];
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(originalRequest);
+      } catch {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/auth/login';
+        }
+        return Promise.reject(error);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export const authApi = {
   login: (credentials: { username: string; password: string }) =>
     apiClient.post('/auth/login', credentials),

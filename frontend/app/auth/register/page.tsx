@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
+import { PasswordStrengthMeter } from '@/components/ui/PasswordStrengthMeter';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -21,13 +22,11 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    // Validate password length
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters long');
       return;
@@ -42,7 +41,6 @@ export default function RegisterPage() {
         password: formData.password,
       });
 
-      // Redirect to login
       router.push('/auth/login?registered=true');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration failed. Please try again.');
@@ -63,12 +61,12 @@ export default function RegisterPage() {
           </p>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded mb-6">
+            <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded mb-6" role="alert">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                 Email Address
@@ -77,10 +75,12 @@ export default function RegisterPage() {
                 id="email"
                 type="email"
                 required
+                autoComplete="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="your@email.com"
+                aria-required="true"
               />
             </div>
 
@@ -92,20 +92,23 @@ export default function RegisterPage() {
                 id="username"
                 type="text"
                 required
+                autoComplete="username"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Choose a username"
+                aria-required="true"
               />
             </div>
 
             <div>
               <label htmlFor="full_name" className="block text-sm font-medium text-gray-300 mb-2">
-                Full Name (Optional)
+                Full Name <span className="text-gray-500 font-normal">(Optional)</span>
               </label>
               <input
                 id="full_name"
                 type="text"
+                autoComplete="name"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -121,11 +124,17 @@ export default function RegisterPage() {
                 id="password"
                 type="password"
                 required
+                autoComplete="new-password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Min. 8 characters"
+                aria-required="true"
+                aria-describedby="password-strength"
               />
+              <div id="password-strength">
+                <PasswordStrengthMeter password={formData.password} />
+              </div>
             </div>
 
             <div>
@@ -136,11 +145,16 @@ export default function RegisterPage() {
                 id="confirmPassword"
                 type="password"
                 required
+                autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Confirm your password"
+                aria-required="true"
               />
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="text-xs text-red-400 mt-1" role="alert">Passwords do not match</p>
+              )}
             </div>
 
             <button

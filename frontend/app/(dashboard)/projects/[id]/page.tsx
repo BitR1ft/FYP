@@ -16,8 +16,80 @@ import {
   Bug,
   Crosshair,
   Radar,
+  Clock,
 } from 'lucide-react';
 import { useProject, useDeleteProject, useStartProject, useStopProject } from '@/hooks/useProjects';
+
+// Simple status timeline derived from project data
+function StatusTimeline({ project }: { project: any }) {
+  const statuses = ['draft', 'queued', 'running', 'completed'];
+  const failedStatuses = ['failed', 'paused'];
+  const currentIndex = statuses.indexOf(project.status);
+  const isFailed = failedStatuses.includes(project.status);
+
+  const steps = [
+    { key: 'draft', label: 'Created', date: project.created_at },
+    { key: 'queued', label: 'Queued', date: project.status !== 'draft' ? project.updated_at : null },
+    { key: 'running', label: 'Running', date: ['running', 'completed', 'failed', 'paused'].includes(project.status) ? project.updated_at : null },
+    { key: 'completed', label: isFailed ? project.status.charAt(0).toUpperCase() + project.status.slice(1) : 'Completed', date: ['completed', 'failed', 'paused'].includes(project.status) ? project.updated_at : null },
+  ];
+
+  return (
+    <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Clock className="h-5 w-5 text-gray-400" />
+        <h2 className="text-lg font-semibold text-white">Status Timeline</h2>
+      </div>
+      <ol className="relative border-l border-gray-700 space-y-6 ml-4" aria-label="Project status timeline">
+        {steps.map((step, idx) => {
+          const isPast = currentIndex > idx || (isFailed && idx <= 2);
+          const isCurrent = project.status === step.key || (isFailed && idx === 3);
+          const isDone = isPast && !isCurrent;
+
+          return (
+            <li key={step.key} className="ml-4" aria-current={isCurrent ? 'step' : undefined}>
+              <span
+                className={`absolute -left-2 flex items-center justify-center w-4 h-4 rounded-full border-2 ${
+                  isCurrent && isFailed
+                    ? 'bg-red-500 border-red-500'
+                    : isCurrent
+                    ? 'bg-blue-500 border-blue-500'
+                    : isDone
+                    ? 'bg-green-500 border-green-500'
+                    : 'bg-gray-700 border-gray-600'
+                }`}
+                aria-hidden="true"
+              />
+              <div className="flex items-center gap-3">
+                <span
+                  className={`text-sm font-medium ${
+                    isCurrent && isFailed
+                      ? 'text-red-400'
+                      : isCurrent
+                      ? 'text-blue-400'
+                      : isDone
+                      ? 'text-green-400'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  {step.label}
+                </span>
+                {step.date && (
+                  <time
+                    dateTime={step.date}
+                    className="text-xs text-gray-600"
+                  >
+                    {new Date(step.date).toLocaleString()}
+                  </time>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -174,6 +246,9 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Status Timeline */}
+      <StatusTimeline project={project} />
 
       {/* Modules Settings */}
       <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
