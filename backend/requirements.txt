@@ -39,7 +39,7 @@ langsmith==0.4.0
 # Utilities
 python-slugify==8.0.1
 email-validator==2.1.0
-pydantic-extra-types==2.3.0
+pydantic-extra-types==2.11.0
 
 # Security
 cryptography==42.0.0
