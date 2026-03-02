@@ -50,7 +50,7 @@ tavily-python==0.5.2
 
 # Reconnaissance tools
 python-whois==0.8.0
-dnspython==2.4.2
+dnspython==2.8.0
 
 # HTTP Probing - Month 5
 mmh3==4.1.0
