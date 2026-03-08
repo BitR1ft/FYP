@@ -1,0 +1,371 @@
+# =============================================================================
+# Day 181-183: CI Pipeline — Backend, Frontend & Integration Tests
+#
+# Triggers on every push and pull request to main/develop branches.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+# =============================================================================
+# JOB 1: Backend Lint
+# =============================================================================
+jobs:
+  backend-lint:
+    name: Backend — Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install lint dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install ruff mypy
+
+      - name: Run ruff linter
+        run: |
+          cd backend
+          ruff check app/ --output-format=github || true
+
+      - name: Run mypy type checker
+        run: |
+          cd backend
+          mypy app/ --ignore-missing-imports --no-strict-optional || true
+
+# =============================================================================
+# JOB 2: Backend Tests
+# =============================================================================
+  backend-tests:
+    name: Backend — Unit & Integration Tests
+    runs-on: ubuntu-latest
+    needs: backend-lint
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: autopentestai
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: autopentestai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U autopentestai -d autopentestai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://autopentestai:testpassword@localhost:5432/autopentestai_test
+      SECRET_KEY: ci-test-secret-key-that-is-long-enough-for-testing
+      ENVIRONMENT: testing
+      PYTHONPATH: .
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run unit tests with coverage
+        run: |
+          cd backend
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            -v \
+            --tb=short \
+            -x \
+            2>&1 | tee test-results.txt
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: backend/test-results.txt
+          retention-days: 7
+
+# =============================================================================
+# JOB 3: Chaos Tests
+# =============================================================================
+  backend-chaos:
+    name: Backend — Chaos Tests
+    runs-on: ubuntu-latest
+    needs: backend-lint
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'chaos-tests')
+
+    env:
+      ENVIRONMENT: testing
+      SECRET_KEY: ci-test-secret-key-that-is-long-enough-for-testing
+      PYTHONPATH: .
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run chaos tests
+        run: |
+          cd backend
+          pytest tests/test_chaos.py -v --tb=short
+
+# =============================================================================
+# JOB 4: Frontend Lint
+# =============================================================================
+  frontend-lint:
+    name: Frontend — Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd frontend
+          npm run lint -- --format=json --output-file=eslint-results.json || true
+          npm run lint
+
+      - name: Run TypeScript type check
+        run: |
+          cd frontend
+          npm run type-check
+
+      - name: Upload ESLint results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eslint-results
+          path: frontend/eslint-results.json
+          retention-days: 7
+
+# =============================================================================
+# JOB 5: Frontend Tests
+# =============================================================================
+  frontend-tests:
+    name: Frontend — Unit Tests
+    runs-on: ubuntu-latest
+    needs: frontend-lint
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run Jest tests with coverage
+        run: |
+          cd frontend
+          npm run test:coverage -- \
+            --ci \
+            --reporters=default \
+            --reporters=jest-junit \
+            --coverageReporters=text \
+            --coverageReporters=lcov \
+            --coverageThreshold='{"global":{"lines":70}}' \
+          2>&1 | tee test-results.txt
+        env:
+          JEST_JUNIT_OUTPUT_DIR: ./test-results
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: frontend/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-test-results
+          path: frontend/test-results
+          retention-days: 7
+
+# =============================================================================
+# JOB 6: Integration Tests
+# =============================================================================
+  integration-tests:
+    name: Integration Tests (Full Stack)
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: autopentestai
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: autopentestai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U autopentestai -d autopentestai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      neo4j:
+        image: neo4j:5.15-community
+        env:
+          NEO4J_AUTH: neo4j/testpassword
+          NEO4J_PLUGINS: '["apoc"]'
+        ports:
+          - 7474:7474
+          - 7687:7687
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 30s
+
+    env:
+      DATABASE_URL: postgresql://autopentestai:testpassword@localhost:5432/autopentestai_test
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: testpassword
+      SECRET_KEY: ci-test-secret-key-that-is-long-enough-for-testing
+      ENVIRONMENT: testing
+      PYTHONPATH: .
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run integration tests
+        run: |
+          cd backend
+          pytest tests/test_week26_integration.py tests/test_week26_contracts.py -v --tb=short
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: backend/
+          retention-days: 7
+
+# =============================================================================
+# JOB 7: CI Status Summary
+# =============================================================================
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, backend-chaos]
+    if: always()
+
+    steps:
+      - name: Check all jobs status
+        run: |
+          echo "## CI Summary"
+          echo "Backend Tests: ${{ needs.backend-tests.result }}"
+          echo "Frontend Tests: ${{ needs.frontend-tests.result }}"
+          echo "Chaos Tests: ${{ needs.backend-chaos.result }}"
+
+          if [[ "${{ needs.backend-tests.result }}" == "failure" || \
+                "${{ needs.frontend-tests.result }}" == "failure" ]]; then
+            echo "❌ CI FAILED"
+            exit 1
+          else
+            echo "✅ CI PASSED"
+          fi

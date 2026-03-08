@@ -107,7 +107,7 @@ export default function EditProjectPage() {
           enable_tech_detection: project.enable_tech_detection,
           enable_vuln_scan: project.enable_vuln_scan,
           enable_nuclei: project.enable_nuclei,
-          enable_auto_exploit: project.enable_auto_exploit,
+          ai_auto_exploit: project.enable_auto_exploit,
         }}
         error={(updateProject.error as any)?.response?.data?.detail || updateProject.error?.message}
         submitLabel="Save Changes"

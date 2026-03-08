@@ -751,5 +751,78 @@ A: v1.0 uses keyword-based classification with confidence scoring. The system re
 
 ---
 
+---
+
+## 19. New in v1.0 — Feature Summary (Week 31 Update)
+
+### Real-Time Scan Progress
+
+The project detail page now shows a live **Scan Progress Panel** when a scan is
+running or queued:
+
+- Phase indicator (Recon → Exploitation → Post-Exploitation)
+- Current tool name and progress bar
+- Live log lines streamed via SSE
+- Status dot (green = running, amber = queued, red = error)
+
+### 3D Attack Graph
+
+The **Graph Explorer** page offers a 2D/3D toggle:
+
+- **2D mode**: Force-directed graph with node click/hover interactions
+- **3D mode**: Perspective canvas graph using a Fibonacci sphere layout; drag to
+  rotate, click to inspect
+
+Switch between modes using the toggle in the top-right of the Graph Explorer page.
+
+### Graph Export
+
+Export the attack graph in two formats:
+
+| Format | Button | Use Case |
+|--------|--------|---------|
+| **JSON** | `Export JSON` | Machine-readable, API integrations |
+| **GEXF 1.2** | `Export GEXF` | Gephi / network analysis tools |
+
+A "Copy Link" button copies a direct share URL to clipboard with toast feedback.
+
+### Toast Notifications
+
+The UI now shows non-blocking toast notifications for:
+
+- Scan start / complete / error events
+- Export success / failure
+- Session expiry warnings
+
+Toasts auto-dismiss after 4 seconds and are screen-reader accessible.
+
+### Responsive Filter Bar
+
+On mobile devices, the project filter bar collapses into a toggleable panel to
+reduce visual clutter. Tap the **Filters** button to expand.
+
+### Performance & Observability
+
+- Prometheus metrics endpoint (`/metrics`) for Grafana dashboards
+- Grafana pre-provisioned at **http://localhost:3001** (admin / your GRAFANA_PASSWORD)
+- Structured JSON audit log for compliance reporting
+
+---
+
+## 20. Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `N` | New project (from projects list) |
+| `Ctrl+K` / `⌘K` | Quick search |
+| `/` | Focus filter input |
+| `Esc` | Close modal / panel |
+| `G` then `P` | Go to Projects |
+| `G` then `G` | Go to Graph Explorer |
+| `G` then `C` | Go to Agent Chat |
+
+---
+
 *AutoPenTest AI v1.0.0 — User Manual*
+*Last updated: Week 31 — Day 207*
 *© 2026 Muhammad Adeel Haider. All rights reserved.*

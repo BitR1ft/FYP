@@ -1,7 +1,9 @@
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
+# pydantic: must satisfy langchain>=2.7.4 and remain below Pydantic 3.x
+# (Pydantic 3 is unreleased; widen the range here if/when it ships)
+pydantic>=2.7.4,<3.0.0
+pydantic-settings>=2.1.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6

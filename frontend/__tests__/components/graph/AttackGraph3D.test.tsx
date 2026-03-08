@@ -29,7 +29,8 @@ const mockCanvas = {
   })),
 };
 
-HTMLCanvasElement.prototype.getContext = mockCanvas.getContext;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(HTMLCanvasElement.prototype.getContext as any) = mockCanvas.getContext;
 
 // Mock requestAnimationFrame - call callback once only to avoid infinite loop
 let rafId = 0;
